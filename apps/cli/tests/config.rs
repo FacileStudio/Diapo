@@ -26,6 +26,6 @@ fn servers_and_deck_references_are_normalized() {
         assert_eq!(site(typed), "https://diapo.example", "{typed}");
     }
     assert_eq!(deck_reference("d1"), (None, "d1".to_owned()));
-    let from_url = deck_reference("https://diapo.example/d/3f2a?present=1");
+    let from_url = deck_reference("https://diapo.example/decks/3f2a?present=1");
     assert_eq!(from_url, (Some("https://diapo.example".to_owned()), "3f2a".to_owned()));
 }

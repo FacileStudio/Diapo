@@ -30,6 +30,8 @@ pub enum ApiError {
         /// `error.message` of the envelope, or the start of the body.
         message: String,
     },
+    /// `422`: the server parsed the source and refused it, with the line of each problem.
+    Invalid(Vec<SourceError>),
     /// A success answer the CLI cannot read.
     Malformed(String),
 }
@@ -39,6 +41,15 @@ impl ApiError {
     pub fn is_conflict(&self) -> bool {
         matches!(self, ApiError::Refused { status: 409, .. })
     }
+}
+
+/// One problem the server found in a source.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct SourceError {
+    /// The 1-based line.
+    pub line: usize,
+    /// The problem in words, as `docs/format.md` lists it.
+    pub message: String,
 }
 
 /// What a request carries.

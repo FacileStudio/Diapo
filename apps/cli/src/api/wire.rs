@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use ureq::http::Request;
 
-use super::ApiError;
+use super::{ApiError, SourceError};
 
 const TIMEOUT: Duration = Duration::from_secs(120);
 const BODY_LIMIT: u64 = 1 << 30;
@@ -26,6 +26,8 @@ fn refusal(status: u16, body: &[u8]) -> ApiError {
     #[derive(Deserialize)]
     struct Envelope {
         error: Detail,
+        #[serde(default)]
+        errors: Vec<SourceError>,
     }
     #[derive(Deserialize)]
     struct Detail {
@@ -35,7 +37,8 @@ fn refusal(status: u16, body: &[u8]) -> ApiError {
         message: String,
     }
     match serde_json::from_slice::<Envelope>(body) {
-        Ok(Envelope { error }) if !error.code.is_empty() => {
+        Ok(Envelope { errors, .. }) if status == 422 && !errors.is_empty() => ApiError::Invalid(errors),
+        Ok(Envelope { error, .. }) if !error.code.is_empty() => {
             ApiError::Refused { status, code: error.code, message: error.message }
         }
         _ => {

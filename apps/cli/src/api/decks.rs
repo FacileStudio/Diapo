@@ -49,9 +49,9 @@ impl Client {
         self.list("/decks")
     }
 
-    /// `POST /api/decks`.
-    pub fn create_deck(&self, title: &str) -> Result<DeckSummary, ApiError> {
-        self.json("POST", "/decks", Payload::Json(&json!({ "title": title })))
+    /// `POST /api/decks`: a new personal deck holding `source`, at revision 1.
+    pub fn create_deck(&self, title: &str, source: &str) -> Result<DeckSummary, ApiError> {
+        self.json("POST", "/decks", Payload::Json(&json!({ "title": title, "source": source })))
     }
 
     /// `GET /api/decks/{id}`.
@@ -60,7 +60,7 @@ impl Client {
     }
 
     /// `PUT /api/decks/{id}/source`: writes `source` over revision `rev` and answers the new
-    /// revision. A stale `rev` is refused with `409 conflict`.
+    /// revision. A stale `rev` is refused with `409`, a source that does not parse with `422`.
     pub fn put_source(&self, id: &str, source: &str, rev: i64) -> Result<i64, ApiError> {
         let body = json!({ "source": source, "rev": rev });
         let written: Written = self.json("PUT", &format!("/decks/{}/source", encode(id)), Payload::Json(&body))?;

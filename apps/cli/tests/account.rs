@@ -66,7 +66,7 @@ fn list_open_and_logout_work_from_the_stored_login() {
     let listed: serde_json::Value = serde_json::from_slice(&run(&["list", "--json"]).stdout).unwrap();
     assert_eq!(listed[1]["title"], "Launch");
     fs::write(home.path().join(".diapo.json"), format!(r#"{{"deck":"d1","server":"{url}","rev":1}}"#)).unwrap();
-    assert_eq!(text(&run(&["open", "--print"]).stdout), format!("{url}/d/d1\n"));
+    assert_eq!(text(&run(&["open", "--print"]).stdout), format!("{url}/decks/d1\n"));
     assert!(text(&run(&["logout"]).stdout).contains("Signed out"));
     assert!(seen.lock().unwrap().last().unwrap().starts_with("POST /api/auth/logout [Bearer s3cret]"));
     let kept = fs::read_to_string(home.path().join("diapo/config.yml")).unwrap();

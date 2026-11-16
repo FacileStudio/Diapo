@@ -7,11 +7,11 @@ use serde_json::json;
 
 use crate::api::{Client, Deck};
 use crate::cli::{Globals, PullArgs};
-use crate::commands::{RemoteAssets, linked_session, print_json, remote_assets, session};
+use crate::commands::{linked_session, print_json, remote_assets, session};
 use crate::failure::{Failure, Outcome};
 use crate::project::ENTRY;
 use crate::sync::plan::{self, PullPlan, SourcePull};
-use crate::sync::{LINK_FILE, Link, asset_path, local_assets, sha256};
+use crate::sync::{Hashes, LINK_FILE, Link, asset_path, local_assets, sha256};
 use crate::{ui, url};
 
 /// What a pull works on: the deck as the server holds it, the folder, and the folder's link.
@@ -65,10 +65,10 @@ fn wanted(args: &PullArgs, globals: &Globals) -> Outcome<Wanted> {
     }
 }
 
-fn decide(wanted: &Wanted, remote: &RemoteAssets, force: bool) -> Outcome<(SourcePull, PullPlan)> {
+fn decide(wanted: &Wanted, remote: &Hashes, force: bool) -> Outcome<(SourcePull, PullPlan)> {
     let here = fs::read(wanted.dir.join(ENTRY)).ok().map(|bytes| sha256(&bytes));
     let source = plan::pull_source(&wanted.base.source_sha256, here.as_deref(), &sha256(wanted.deck.source.as_bytes()));
-    let assets = plan::pull(&wanted.base.assets, &local_assets(&wanted.dir)?, &remote.hashes);
+    let assets = plan::pull(&wanted.base.assets, &local_assets(&wanted.dir, &wanted.base.assets)?, remote);
     let changed: Vec<&str> = (source == SourcePull::LocalChanges)
         .then_some(ENTRY)
         .into_iter()
@@ -81,7 +81,7 @@ fn decide(wanted: &Wanted, remote: &RemoteAssets, force: bool) -> Outcome<(Sourc
     Err(Failure::new("local_changes", format!("{} changed here since the last sync — {hint}", changed.join(", "))))
 }
 
-fn apply(wanted: &Wanted, remote: &RemoteAssets, source: SourcePull, assets: &PullPlan) -> Outcome<Link> {
+fn apply(wanted: &Wanted, remote: &Hashes, source: SourcePull, assets: &PullPlan) -> Outcome<Link> {
     let (dir, deck) = (&wanted.dir, &wanted.deck);
     fs::create_dir_all(dir)?;
     if source != SourcePull::UpToDate {
@@ -90,10 +90,10 @@ fn apply(wanted: &Wanted, remote: &RemoteAssets, source: SourcePull, assets: &Pu
     for name in &assets.download {
         let path = asset_path(dir, name);
         fs::create_dir_all(path.parent().unwrap_or(dir))?;
-        fs::write(&path, wanted.client.download_asset(&deck.id, remote.spelled.get(name).unwrap_or(name))?)?;
+        fs::write(&path, wanted.client.download_asset(&deck.id, name)?)?;
     }
     assets.remove.iter().for_each(|name| drop(fs::remove_file(asset_path(dir, name))));
-    let held = local_assets(dir)?.into_iter().filter(|(name, _)| remote.hashes.contains_key(name)).collect();
+    let held = local_assets(dir, remote)?.into_iter().filter(|(name, _)| remote.contains_key(name)).collect();
     let source_sha256 = sha256(deck.source.as_bytes());
     let link = Link { rev: deck.rev, source_sha256, assets: held, ..wanted.base.clone() };
     link.save(dir)?;
@@ -107,8 +107,10 @@ fn report(wanted: &Wanted, link: &Link, source: SourcePull, assets: &PullPlan) {
         let deck = json!({ "deck": link.deck, "title": wanted.deck.title, "rev": link.rev });
         return print_json(&json!({ "dir": dir, "source_updated": updated, "assets": assets, "deck": deck }));
     }
-    assets.download.iter().for_each(|name| println!("\u{2193} {name}"));
-    assets.remove.iter().for_each(|name| println!("- {name}"));
+    if !ui::json() {
+        assets.download.iter().for_each(|name| println!("\u{2193} {name}"));
+        assets.remove.iter().for_each(|name| println!("- {name}"));
+    }
     match updated || !assets.download.is_empty() || !assets.remove.is_empty() {
         true => ui::success(&format!("Pulled deck {} into {dir} (revision {})", link.deck, link.rev)),
         false => ui::success(&format!("{dir} is up to date (revision {})", link.rev)),

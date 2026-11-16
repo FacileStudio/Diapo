@@ -9,7 +9,7 @@ use crate::url::{encode, encode_path};
 /// An asset as the server lists it.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct RemoteAsset {
-    /// The file name.
+    /// The name: the relative path the source writes, such as `assets/chart.png`.
     pub name: String,
     /// The size in bytes.
     #[serde(default)]
@@ -19,14 +19,17 @@ pub struct RemoteAsset {
     pub sha256: String,
 }
 
+fn part(boundary: &str, disposition: &str) -> Vec<u8> {
+    format!("--{boundary}\r\nContent-Disposition: form-data; {disposition}\r\n").into_bytes()
+}
+
 fn multipart(name: &str, kind: &str, bytes: &[u8]) -> (String, Vec<u8>) {
     let boundary = format!("diapo-{}", &sha256(bytes)[..32]);
-    let file_name = name.replace(['"', '\r', '\n'], "_");
-    let head = format!(
-        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{file_name}\"\r\n\
-         Content-Type: {kind}\r\n\r\n"
-    );
-    let mut body = head.into_bytes();
+    let file_name = name.rsplit('/').next().unwrap_or(name).replace(['"', '\r', '\n'], "_");
+    let mut body = part(&boundary, "name=\"name\"");
+    body.extend_from_slice(format!("\r\n{name}\r\n").as_bytes());
+    body.extend_from_slice(&part(&boundary, &format!("name=\"file\"; filename=\"{file_name}\"")));
+    body.extend_from_slice(format!("Content-Type: {kind}\r\n\r\n").as_bytes());
     body.extend_from_slice(bytes);
     body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
     (format!("multipart/form-data; boundary={boundary}"), body)
@@ -45,7 +48,8 @@ impl Client {
         self.list(&route(id, None))
     }
 
-    /// `POST /api/decks/{id}/assets`: one file as the `file` part of a multipart form.
+    /// `POST /api/decks/{id}/assets`: a multipart form with the asset's `name` and its `file`.
+    /// The server types the file by its bytes and replaces an asset of the same name.
     pub fn upload_asset(&self, id: &str, name: &str, kind: &str, bytes: &[u8]) -> Result<(), ApiError> {
         let (content_type, body) = multipart(name, kind, bytes);
         self.call("POST", &route(id, None), Payload::Raw(&content_type, body)).map(drop)

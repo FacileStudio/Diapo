@@ -19,7 +19,8 @@ pub const LINK_FILE: &str = ".diapo.json";
 /// The folder, beside the entry file, whose files are the deck's assets.
 pub const ASSETS_DIR: &str = "assets";
 
-/// Asset names to the SHA-256 of their content. A name is a path under `assets/`.
+/// Asset names to the SHA-256 of their content. A name is the path the source writes,
+/// relative to the deck folder, such as `assets/chart.png`.
 pub type Hashes = BTreeMap<String, String>;
 
 /// The content of `.diapo.json`: the deck, and what it held at the last pull or push.
@@ -63,21 +64,18 @@ pub fn sha256(bytes: &[u8]) -> String {
     Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// The name an asset has on both sides: the path under `assets/`, whichever way the server
-/// spells it.
-pub fn asset_name(name: &str) -> &str {
-    name.strip_prefix("assets/").unwrap_or(name)
-}
-
-/// Whether an asset name stays under `assets/`: no empty, `.`, `..` or absolute part. The
-/// server's names are checked with this before a pull writes anything.
+/// Whether an asset name may be written into a deck folder: a relative path with no empty,
+/// `.` or `..` part, no hidden part, and not the deck's own source file. The server's names
+/// are checked with this before a pull writes anything.
 pub fn safe_name(name: &str) -> bool {
-    !name.is_empty() && Path::new(name).components().all(|part| matches!(part, Component::Normal(_)))
+    let plain =
+        |part: Component<'_>| matches!(part, Component::Normal(text) if !text.to_string_lossy().starts_with('.'));
+    !name.is_empty() && name != crate::project::ENTRY && Path::new(name).components().all(plain)
 }
 
 /// The file an asset name is in `dir`.
 pub fn asset_path(dir: &Path, name: &str) -> PathBuf {
-    dir.join(ASSETS_DIR).join(name)
+    dir.join(name)
 }
 
 fn walk(root: &Path, at: &Path, found: &mut Hashes) -> io::Result<()> {
@@ -97,12 +95,17 @@ fn walk(root: &Path, at: &Path, found: &mut Hashes) -> io::Result<()> {
     Ok(())
 }
 
-/// Hashes every file under `dir/assets`, hidden files left out.
-pub fn local_assets(dir: &Path) -> io::Result<Hashes> {
-    let root = dir.join(ASSETS_DIR);
+/// Hashes the folder's assets: every file under `dir/assets`, hidden files left out, and
+/// each file of `known`, the last sync, that still exists elsewhere in the folder.
+pub fn local_assets(dir: &Path, known: &Hashes) -> io::Result<Hashes> {
     let mut found = Hashes::new();
-    if root.is_dir() {
-        walk(&root, &root, &mut found)?;
+    if dir.join(ASSETS_DIR).is_dir() {
+        walk(dir, &dir.join(ASSETS_DIR), &mut found)?;
+    }
+    for name in known.keys().filter(|name| safe_name(name)) {
+        if let Ok(bytes) = fs::read(asset_path(dir, name)) {
+            found.insert(name.clone(), sha256(&bytes));
+        }
     }
     Ok(found)
 }

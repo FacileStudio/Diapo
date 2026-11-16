@@ -13,7 +13,7 @@ use crate::{browser, ui};
 
 /// The web page of the deck `link` names.
 pub fn web_url(link: &Link) -> String {
-    format!("{}/d/{}", link.server, encode(&link.deck))
+    format!("{}/decks/{}", link.server, encode(&link.deck))
 }
 
 /// Prints the URL, and opens it unless `--print` or `--json` says not to.

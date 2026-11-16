@@ -27,7 +27,7 @@ fn library(line: &str, _: &str) -> (u16, String) {
 fn pull_writes_the_deck_and_refuses_to_lose_local_edits() {
     let (url, _) = mock(library);
     let work = linked_folder(&url, &[]);
-    let pulled = diapo(&work, &["pull", &format!("{url}/d/d9")]);
+    let pulled = diapo(&work, &["pull", &format!("{url}/decks/d9")]);
     assert!(pulled.status.success(), "{}", text(&pulled.stderr));
     let dir = work.path().join("q3-review");
     assert_eq!(fs::read_to_string(dir.join("diapo.md")).unwrap(), "# Remote\n");
