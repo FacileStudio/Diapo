@@ -47,7 +47,7 @@
 
 <div class="mx-auto flex w-full max-w-fc-xl flex-col gap-8 px-4 py-8 pb-24 sm:px-6 md:px-10 md:py-10 md:pb-32">
 	<header class="flex flex-wrap items-center gap-4">
-		<div class="flex min-w-0 flex-1 flex-col gap-1">
+		<div class="flex min-w-full flex-1 flex-col gap-1 sm:min-w-0">
 			<h1 class="text-fc-2xl font-semibold whitespace-nowrap text-fc-fg">{t('decks.title')}</h1>
 			<p class="text-fc-sm text-fc-fg-muted">{t('decks.subtitle')}</p>
 		</div>
