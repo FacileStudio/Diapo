@@ -1,0 +1,75 @@
+import { backend } from './backend';
+import type { AssistantProfile } from './types';
+
+/** The Bulle origin until the API names one with `bulle_url` (`BULLE_URL`). */
+export const DEFAULT_BULLE = 'https://bulle.facile.studio';
+
+/** The name shown until Bulle answers, or when it cannot. */
+export const DEFAULT_ASSISTANT: AssistantProfile = { name: 'Bulle', accent: null };
+
+/** What Diapo tells Bulle about the open deck. */
+export interface PageContext {
+	app: 'diapo';
+	id: string;
+	title: string;
+	url: string;
+}
+
+/** What the Bulle frame says to Diapo. */
+export type BulleMessage = { type: 'bulle:ready'; assistant: { name: string } } | { type: 'bulle:close' };
+
+let asked: Promise<AssistantProfile> | null = null;
+
+/** The person's assistant, asked once per tab; the default when it cannot be read, and asked again next time. */
+export function assistant(): Promise<AssistantProfile> {
+	return (asked ??= backend
+		.assistant()
+		.then((found) => (found.name.trim() ? found : DEFAULT_ASSISTANT))
+		.catch(() => {
+			asked = null;
+			return DEFAULT_ASSISTANT;
+		}));
+}
+
+/** The chat embed URL for `page` on the Bulle at `origin`. */
+export function embedUrl(page: PageContext, origin: string): string {
+	const query = new URLSearchParams({ app: page.app, id: page.id, title: page.title, url: page.url });
+	return `${origin}/embed/chat?${query}`;
+}
+
+/** Whether `origin` may speak for Bulle: the configured Bulle at `bulle`, or a localhost Bulle while developing. */
+export function trustedOrigin(origin: string, bulle: string, dev = false): boolean {
+	if (origin === bulle) return true;
+	return dev && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
+/** The Bulle message in `data`, or null when it is not one. */
+export function bulleMessage(data: unknown): BulleMessage | null {
+	if (typeof data !== 'object' || data === null) return null;
+	const message = data as { type?: unknown; assistant?: { name?: unknown } };
+	if (message.type === 'bulle:close') return { type: 'bulle:close' };
+	if (message.type === 'bulle:ready' && typeof message.assistant?.name === 'string') {
+		return { type: 'bulle:ready', assistant: { name: message.assistant.name } };
+	}
+	return null;
+}
+
+const OPEN_KEY = 'diapo.bulle.open';
+
+/** Whether `user` left the Bulle sidebar open; false when storage is unavailable. */
+export function sidebarOpen(user: string): boolean {
+	try {
+		return localStorage.getItem(`${OPEN_KEY}.${user}`) === '1';
+	} catch {
+		return false;
+	}
+}
+
+/** Remembers whether `user` has the Bulle sidebar open. */
+export function rememberSidebar(user: string, open: boolean): void {
+	try {
+		localStorage.setItem(`${OPEN_KEY}.${user}`, open ? '1' : '0');
+	} catch {
+		return;
+	}
+}

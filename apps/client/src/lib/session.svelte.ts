@@ -1,13 +1,18 @@
-import { backend, type SessionUser } from './backend';
+import { backend } from './backend';
+import { DEFAULT_BULLE } from './bulle';
+import type { SessionUser } from './types';
 
-/** The signed-in person, or nobody. */
+/** The signed-in person, or nobody, and the Bulle origin from `BULLE_URL`. */
 class Session {
 	user = $state<SessionUser | null>(null);
+	bulle = $state(DEFAULT_BULLE);
 	ready = $state(false);
 
 	async load(): Promise<void> {
 		try {
-			this.user = (await backend.session()).user;
+			const answer = await backend.session();
+			this.user = answer.user;
+			this.bulle = answer.bulle_url || DEFAULT_BULLE;
 		} catch {
 			this.user = null;
 		}
