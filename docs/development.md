@@ -61,7 +61,7 @@ cargo test --workspace --locked
 | `apps/api/tests/events.rs` | The server-sent `changed` stream |
 | `apps/api/tests/directory.rs` | The directory snapshot, retired spaces, account erasure |
 | `apps/api/tests/mcp.rs`, `mcp_tools.rs` | tronc's `mcptest` conformance, the eight tools, scope gates, the delete confirmation |
-| `apps/cli/tests/*.rs` | The HTTP module against an in-process mock server, the sync decisions, and every command through the binary |
+| `apps/cli/tests/*.rs` | The HTTP module against an in-process mock server, the sync decisions, every command through the binary, and `live.rs`: push and pull against the real API on Postgres |
 | `apps/client/src/**/*.test.ts` | The client's unit tests (vitest, jsdom) |
 
 Without `TEST_DATABASE_URL` the database tests print a skip banner and pass: read the output.

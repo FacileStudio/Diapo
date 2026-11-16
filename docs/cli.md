@@ -46,8 +46,8 @@ Every command takes three global flags:
 Exit codes: `0` success, `1` error, `2` usage error, `130` on Ctrl+C.
 
 With `--json`, a failed command prints `{"error":{"code","message"}}` on stdout. The codes a
-script can match: `conflict`, `local_changes`, `not_linked`, `not_logged_in`, `unauthorized`,
-`unreachable`, `invalid`, `no_deck`, and any `error.code` the server sends.
+script can match: `conflict`, `local_changes`, `not_linked`, `not_logged_in`, `unauthorized`, `unreachable`,
+`invalid`, `asset_refused`, `asset_too_large`, `no_deck`, and any `error.code` the server sends.
 
 ## A local deck
 
@@ -80,7 +80,8 @@ of two flows from porte:
 - **Device grant**, with `--device`, and by default on a Linux machine with no display. The
   CLI starts an RFC 8628 device sign-in at the identity provider with the `facile-cli` client,
   prints a link to approve from any browser, then trades the provider's access token at
-  `POST /api/auth/oidc/device/exchange`. That token is never stored.
+  `POST /api/auth/oidc/device/exchange`. That token is never stored. The server mounts this
+  route only when `OIDC_CLI_AUDIENCE` is set; `--device` says so when it is not.
 
 `--no-browser` prints the link and opens nothing. `diapo logout` calls `POST /api/auth/logout`
 and removes the token; it is not an error when there is none.
@@ -111,8 +112,8 @@ The stored token is sent only to the server that issued it: with another `--serv
 ## Syncing with a server
 
 ```sh
-diapo pull https://diapo.facile.studio/d/<id>    # or: diapo pull <id> [dir]
-diapo push                                       # from inside the folder
+diapo pull https://diapo.facile.studio/decks/<id>    # or: diapo pull <id> [dir]
+diapo push                                           # from inside the folder
 ```
 
 A pulled folder holds a `.diapo.json` that links it to its deck:
@@ -123,7 +124,7 @@ A pulled folder holds a `.diapo.json` that links it to its deck:
   "server": "https://diapo.facile.studio",
   "rev": 7,
   "source_sha256": "…",
-  "assets": { "chart.svg": "…" }
+  "assets": { "assets/chart.svg": "…" }
 }
 ```
 
@@ -131,10 +132,12 @@ A pulled folder holds a `.diapo.json` that links it to its deck:
 decision compares three states: that record, the folder, and the server.
 
 **Push** validates the deck, then sends the source with the stored `rev`
-(`PUT /api/decks/{id}/source`). When the deck changed on the server the API answers
-`409 conflict`: the push stops before it writes anything, exits 1, and names the two ways
-out, `diapo pull` or `diapo push --force`. `--force` reads the current `rev` first, then
-overwrites. After the source, assets are synced by SHA-256:
+(`PUT /api/decks/{id}/source`). When the deck changed on the server the API answers `409`:
+the push stops before it writes anything, exits 1 with the code `conflict`, and names the two
+ways out, `diapo pull` or `diapo push --force`. `--force` reads the current `rev` first, then
+overwrites. A source the server refuses (`422`) is printed as `file:line: message`.
+`push --create` makes a new personal deck from the folder (`POST /api/decks` with the source).
+After the source, assets are synced by SHA-256:
 
 | Asset | Push does |
 |---|---|
@@ -146,7 +149,12 @@ overwrites. After the source, assets are synced by SHA-256:
 last sync. `--force` takes the server's copy. It removes a local asset only when the server
 dropped it and the local file is unchanged.
 
-Assets are the files under `assets/`. A hidden file is never synced.
+Assets are the files under `assets/`, named as the source writes them (`assets/chart.png`). A
+hidden file is never synced. The server types each file by its bytes and takes only images,
+video, audio and fonts, with names made of ASCII letters, digits, `.`, `_` and `-`; by default
+an asset may hold 25 MiB and a deck's assets 200 MiB. A refused upload stops the push and
+names the file and the server's reason. A pull also fetches an asset the server holds outside
+`assets/`, and never writes a name that leaves the folder, is hidden, or is `diapo.md`.
 
 ## The API it calls
 
@@ -158,11 +166,11 @@ All HTTP lives in `apps/cli/src/api`. The base is `<server>/api`, with a bearer 
 | `GET /auth/me`, `POST /auth/logout` | `whoami`, `login`, `logout` |
 | `GET /decks`, `POST /decks` | `list`, `push --create` |
 | `GET /decks/{id}`, `PUT /decks/{id}/source` | `pull`, `push` |
-| `GET /decks/{id}/assets`, `POST /decks/{id}/assets` (multipart, part `file`) | `pull`, `push` |
+| `GET /decks/{id}/assets`, `POST /decks/{id}/assets` (multipart, parts `name` and `file`) | `pull`, `push` |
 | `GET /decks/{id}/assets/{name}`, `DELETE /decks/{id}/assets/{name}` | `pull`, `push` |
 
-The client reads a list sent bare or wrapped in an object, an id sent as text or as a number,
-and an asset name with or without the `assets/` prefix.
+The server's reference is [api.md](api.md). `apps/cli/tests/live.rs` runs `push` and `pull`
+through the binary against the real API router on the test Postgres.
 
 ## Releases
 
