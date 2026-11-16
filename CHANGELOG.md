@@ -4,6 +4,8 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
 ### Added
 
 - Decks: `GET/POST /api/decks`, `GET/PATCH/DELETE /api/decks/{id}` and `PUT
