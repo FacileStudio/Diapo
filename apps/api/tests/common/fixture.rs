@@ -38,3 +38,14 @@ pub async fn deck(app: &App, who: &Person, space: Option<&str>, source: &str) ->
 pub fn id(deck: &Value) -> String {
     deck["id"].as_str().unwrap().to_owned()
 }
+
+pub const NOTED: &str = "---\ntitle: Launch \"plan\" <b>\n---\n\n# Launch\n\n![](assets/dot.png)\n\n<!-- SECRET NOTE -->\n\n---\n\n\
+## Next\n\n- One {step=1}\n- Two {step=2}\n\n<!-- ANOTHER SECRET -->\n";
+
+pub async fn shared(app: &App, who: &Person, space: Option<&str>) -> (String, String) {
+    let id = id(&deck(app, who, space, NOTED).await);
+    let link = app.call("POST", &format!("/api/decks/{id}/share"), Some(who), None).await;
+    assert_eq!(link.status, 201, "{}", link.text());
+    let url = link.json()["url"].as_str().unwrap().to_owned();
+    (id, url.rsplit('/').next().unwrap().to_owned())
+}

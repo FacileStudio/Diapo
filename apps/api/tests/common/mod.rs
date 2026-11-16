@@ -20,6 +20,8 @@ pub use http::{Answer, send};
 
 pub const ISSUER: &str = "https://sso.test";
 
+pub const HOST: &str = "https://diapo.test";
+
 pub struct App {
     pub router: Router,
     pub state: AppState,
@@ -47,18 +49,28 @@ pub fn data_dir() -> PathBuf {
     dir
 }
 
+pub const SHELL: &str =
+    "<!doctype html>\n<html><head><title>Diapo</title></head><body><div id=\"app\"></div></body></html>\n";
+
+pub fn client_dir() -> PathBuf {
+    let dir = data_dir();
+    std::fs::write(dir.join("index.html"), SHELL).unwrap();
+    dir
+}
+
 pub async fn app(pool: PgPool) -> App {
     app_with(pool, &[]).await
 }
 
 pub async fn app_with(pool: PgPool, vars: &[(&str, &str)]) -> App {
-    let mut pairs = vec![("DATABASE_URL", "postgres://unused/x")];
+    let mut pairs = vec![("DATABASE_URL", "postgres://unused/x"), ("PUBLIC_URL", HOST)];
     pairs.extend_from_slice(vars);
     let config = Config::from_vars(&Vars::from_pairs(pairs)).unwrap();
     let kits = Kits::new(&config, &pool).await.unwrap();
     let state = AppState {
         issuer: Arc::from(ISSUER),
         data_dir: Arc::new(data_dir()),
+        client_dir: Arc::new(client_dir()),
         ..api::server::state(&config, pool.clone(), &kits)
     };
     let router = api::router::build_router(state.clone(), &kits, None).unwrap();
