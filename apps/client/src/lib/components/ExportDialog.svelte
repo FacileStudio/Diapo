@@ -3,6 +3,7 @@
 	import { Badge, Button, Modal, Spinner } from '@facile/muse';
 	import { EXPORT_FORMATS, Exporter } from '$lib/deck/exporting.svelte';
 	import { t } from '$lib/i18n';
+	import type { ExportFormat } from '$lib/types';
 
 	let { open = $bindable(), id }: { open: boolean; id: string } = $props();
 
@@ -13,6 +14,11 @@
 	});
 
 	$effect(() => () => exporter.stop());
+
+	const hint = (format: ExportFormat) => {
+		if (format !== 'pptx' || exporter.pictures === null) return `export.${format}.hint` as const;
+		return exporter.pictures ? 'export.pptx.hint.pictures' : 'export.pptx.hint.placeholders';
+	};
 </script>
 
 <Modal {open} title={t('export.title')} size="md" onClose={() => (open = false)}>
@@ -26,7 +32,7 @@
 			>
 				<div class="min-w-0 flex-1 basis-48">
 					<p class="text-fc-sm font-semibold text-fc-fg">{t(`export.${format}`)}</p>
-					<p class="text-fc-xs text-fc-fg-muted">{t(`export.${format}.hint`)}</p>
+					<p class="text-fc-xs text-fc-fg-muted">{t(hint(format))}</p>
 					{#if row.state === 'failed'}
 						<p class="text-fc-xs text-fc-danger" role="alert">{row.job?.error || t('export.failed')}</p>
 					{/if}

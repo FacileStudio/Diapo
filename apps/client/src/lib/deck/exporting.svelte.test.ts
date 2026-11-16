@@ -72,8 +72,15 @@ describe('Exporter', () => {
 		await exporter.probe();
 		expect(start).not.toHaveBeenCalled();
 		expect(EXPORT_STATES(exporter)).toEqual(['idle', 'idle', 'soon', 'soon']);
-		formats.mockResolvedValue({ formats: [{ format: 'pdf', available: true }] });
+		expect(exporter.pictures).toBe(false);
+		formats.mockResolvedValue({
+			formats: [
+				{ format: 'pdf', available: true },
+				{ format: 'pptx', available: true, notes: 'raw scenes as pictures' }
+			]
+		});
 		await exporter.probe();
+		expect(exporter.pictures).toBe(true);
 		expect(EXPORT_STATES(exporter)).toEqual(['idle', 'idle', 'idle', 'soon']);
 	});
 
@@ -83,6 +90,7 @@ describe('Exporter', () => {
 		const exporter = new Exporter('d1');
 		await exporter.probe();
 		expect(EXPORT_STATES(exporter)).toEqual(['idle', 'idle', 'idle', 'idle']);
+		expect(exporter.pictures).toBeNull();
 		await exporter.start('pdf');
 		expect(exporter.rows.pdf.state).toBe('soon');
 	});
