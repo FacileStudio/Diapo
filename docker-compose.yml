@@ -23,7 +23,7 @@ services:
   diapo-data-owner:
     image: busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
     restart: "no"
-    command: ["chown", "-R", "65532:65532", "/data"]
+    command: ["sh", "-c", "mkdir -p /data/captures && chown -R 65532:65532 /data"]
     volumes:
     - data:/data
   diapo-api:
@@ -73,6 +73,7 @@ services:
       BULLE_CLIENT_ID: ${BULLE_CLIENT_ID:-bulle}
       PUBLIC_URL: ${PUBLIC_URL:-}
       EMBED_ANCESTORS: ${EMBED_ANCESTORS:-https://prisme.facile.studio}
+      CLAP_URL: ${CLAP_URL-https://clap.facile.studio}
     healthcheck:
       test: ["CMD", "/api", "healthcheck"]
       interval: 30s
@@ -87,6 +88,52 @@ services:
         condition: service_completed_successfully
     deploy:
       replicas: 1
+  diapo-render:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/usr/bin/tini", "--", "/worker"]
+    user: "65532:65532"
+    network_mode: none
+    read_only: true
+    tmpfs:
+    - /tmp:size=1g,mode=1777
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    - seccomp=deploy/chrome-seccomp.json
+    volumes:
+    - type: volume
+      source: data
+      target: /data/captures
+      volume:
+        subpath: captures
+    labels:
+      journal.app: diapo-render
+    environment:
+      DIAPO_CAPTURES_DIR: /data/captures
+      DIAPO_CAPTURE_MAX_SIDE: ${DIAPO_CAPTURE_MAX_SIDE:-4096}
+      DIAPO_CAPTURE_MAX_PAGES: ${DIAPO_CAPTURE_MAX_PAGES:-500}
+      DIAPO_CAPTURE_TIMEOUT_SECONDS: ${DIAPO_CAPTURE_TIMEOUT_SECONDS:-300}
+    healthcheck:
+      test: ["CMD", "/worker", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 1s
+    depends_on:
+      diapo-data-owner:
+        condition: service_completed_successfully
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+          pids: 1024
 volumes:
   db_data:
     name: diapo_db_data
