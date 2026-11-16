@@ -38,6 +38,19 @@ All notable changes to Diapo. Versions follow SemVer.
   Vision tracker loads on the two public pages as a pinned same-origin copy.
 - Language is now picked on the settings page (muse v0.30.0 slimmed the user menu).
 - The app mark is the Solar `presentation-graph-bold-duotone` glyph.
+- Share links: `POST`, `GET` and `DELETE /api/decks/{id}/share`. One live link per deck; the
+  token is shown once and stored only as its SHA-256.
+- Public, cookie-less routes for a shared deck: `GET /api/public/decks/{token}` (no source, no
+  notes), its sandboxed frame, the `/p/{token}` page with `og:` tags, `/embed/{token}` (framable
+  by `EMBED_ANCESTORS`), `/oembed` and `/p/{token}/thumbnail.jpg` (404 until thumbnails are
+  rendered).
+- Exports: `POST /api/decks/{id}/exports`, `GET /api/exports/{id}` and a download route. `html`
+  is one offline file, `pptx` an editable PowerPoint file; `pdf` and `mp4` answer `unavailable`.
+  `diapo_export` builds `html` and `pptx` and answers a signed link valid one hour.
+- `facile-scene`: the `pptx` feature, `scene::pptx::write`. Titles, text, leveled lists, tables,
+  embedded pictures and presenter notes become editable shapes; a `raw` scene becomes a slide
+  that says it is animated HTML.
+- Migration `0004_share_exports.sql`. New variables: `PUBLIC_URL`, `EMBED_ANCESTORS`.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
 - `apps/cli`: the `diapo` command line. `new`, `serve` (live reload, problems in the terminal

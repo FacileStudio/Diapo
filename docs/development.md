@@ -60,6 +60,9 @@ cargo test --workspace --locked
 | `apps/api/tests/assets.rs` | Sniffing, names (traversal refused), caps, the sweep |
 | `apps/api/tests/events.rs` | The server-sent `changed` stream |
 | `apps/api/tests/directory.rs` | The directory snapshot, retired spaces, account erasure |
+| `apps/api/tests/share.rs`, `public.rs` | Share links, the public routes (404 edges, no cookie, no notes), `og:` tags, oEmbed, the embed header |
+| `apps/api/tests/exports.rs` | HTML and PPTX exports, signed downloads, the purge |
+| `crates/scene/tests/pptx.rs` | The PPTX package: well-formed parts, text, lists, tables, pictures, notes. Opens it with LibreOffice when `soffice` is installed, and prints `SKIPPED` otherwise |
 | `apps/api/tests/mcp.rs`, `mcp_tools.rs` | tronc's `mcptest` conformance, the eight tools, scope gates, the delete confirmation |
 | `apps/cli/tests/*.rs` | The HTTP module against an in-process mock server, the sync decisions, every command through the binary, and `live.rs`: push and pull against the real API on Postgres |
 | `apps/client/src/**/*.test.ts` | The client's unit tests (vitest, jsdom) |

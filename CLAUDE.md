@@ -46,11 +46,13 @@ print a skip banner without it: read the output before trusting a green run.
   network; a frame depends only on `seek(t)` or `step(k)`. A test bans the calls.
 - **Compiled documents run author scripts.** Serve them only in a sandboxed frame
   (`sandbox="allow-scripts"`, no `allow-same-origin`), never in the app origin.
-  `GET /api/decks/{id}/frame` is the only route that answers user HTML as HTML; its policy keeps
+  `GET /api/decks/{id}/frame` and its public twin are the only routes that answer user HTML as HTML; its policy keeps
   `sandbox` and has no `connect-src`, and it never sets a cookie (`docs/api.md`).
 - **One `access()` authorizes every deck query** (`modules/decks/access.rs`). `None` is `404`.
 - **Every write names its `rev`** and goes through `modules::decks::write::save`, REST and MCP
   alike. A stale `rev` is `409` and changes nothing.
+- **A public route never answers the source, a note or the deck id**, never sets a cookie, and is
+  `404` for any link that is not live. A share token is stored only as its SHA-256.
 - **The MCP tool names are a contract.** Bulle calls the eight `diapo_*` tools by name.
 - **Auth is porte's.** `apps/api/src/auth` wires porte as its `docs/architecture.md` says.
   Never hand-roll a session, a cookie or a token check.
