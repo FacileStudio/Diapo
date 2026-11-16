@@ -21,15 +21,21 @@ diapo.facile.studio ──▶ Traefik (web → websecure) ──▶ diapo-api:40
 docker build -t diapo .
 ```
 
-The root `Dockerfile` builds the client with bun, builds the `api` and `worker` binaries of the
+The root `Dockerfile` builds the client with bun and the `api` and `worker` binaries of the
 workspace with `cargo build --release --locked -p api -p worker` (the version comes from
 `apps/client/package.json` through `scripts/version.sh`, and the build fails when it cannot be
-read), and copies them into `debian:bookworm-slim`, pinned by digest, with
-`chrome-headless-shell` pinned by version and checked against its SHA-256, the libraries it
-needs, two font families and `tini`. Both services run as uid 65532. `docker-compose.yml` runs a
-one-shot `diapo-data-owner` service (busybox) that creates `/data/captures` and hands `/data` to
-65532 before the others start. The entrypoint is `tini -- /api`, so
-`docker run diapo migrate status` works; `diapo-render` overrides it with `tini -- /worker`.
+read). It ends in two images:
+
+| Target | Base | Holds | Service |
+|---|---|---|---|
+| `api` (the default) | `gcr.io/distroless/cc-debian12:nonroot`, pinned by digest | `/api` and the client. No shell, no browser | `diapo-api` |
+| `worker` | `debian:bookworm-slim`, pinned by digest | `/worker`, `chrome-headless-shell` pinned by version and checked against its SHA-256, its libraries, two font families, `tini` | `diapo-render` |
+
+Both run as uid 65532. `docker-compose.yml` names each service's target, and runs a one-shot
+`diapo-data-owner` (busybox) that creates `/data/captures` and hands `/data` to 65532 before the
+others start. The API's entrypoint is `/api`, so `docker run <api image> migrate status` works.
+`diapo-api` is held to 1536 MiB: an export builds its file in memory, up to 300 MiB, with the
+assets it inlines beside it.
 
 To move Chrome, change `CHROME_VERSION` and `CHROME_SHA256` together in the `Dockerfile`, then
 run the capture tests and one PDF job in a container started with the service's options.
