@@ -58,6 +58,28 @@ export const decks = {
 		'Volver a las presentaciones',
 		'Zurück zu den Präsentationen'
 	],
+	'trash.title': ['Trash', 'Corbeille', 'Papelera', 'Papierkorb'],
+	'trash.subtitle': [
+		'Trashed presentations. Restore one, or delete it for good.',
+		'Les présentations mises à la corbeille. Restaurez-en une, ou supprimez-la définitivement.',
+		'Las presentaciones en la papelera. Restaure una, o elimínela definitivamente.',
+		'Präsentationen im Papierkorb. Stellen Sie eine wieder her oder löschen Sie sie endgültig.'
+	],
+	'trash.empty': ['The trash is empty', 'La corbeille est vide', 'La papelera está vacía', 'Der Papierkorb ist leer'],
+	'trash.restore': ['Restore', 'Restaurer', 'Restaurar', 'Wiederherstellen'],
+	'trash.delete': ['Delete for good', 'Supprimer définitivement', 'Eliminar definitivamente', 'Endgültig löschen'],
+	'trash.confirm': [
+		'Delete “{title}” for good?',
+		'Supprimer définitivement « {title} » ?',
+		'¿Eliminar definitivamente «{title}»?',
+		'„{title}“ endgültig löschen?'
+	],
+	'trash.confirm.hint': [
+		'The presentation, its history and its files are deleted. This cannot be undone.',
+		'La présentation, son historique et ses fichiers sont supprimés. Cette action est irréversible.',
+		'La presentación, su historial y sus archivos se eliminan. Esta acción no se puede deshacer.',
+		'Die Präsentation, ihr Verlauf und ihre Dateien werden gelöscht. Das lässt sich nicht rückgängig machen.'
+	],
 	'settings.title': ['Settings', 'Réglages', 'Ajustes', 'Einstellungen'],
 	'settings.profile': ['Profile', 'Profil', 'Perfil', 'Profil'],
 	'settings.preferences': ['Preferences', 'Préférences', 'Preferencias', 'Einstellungen'],
