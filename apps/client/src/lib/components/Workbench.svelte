@@ -51,6 +51,7 @@
 	const plan = $derived(outline(text));
 	const scene = $derived(sceneAt(plan.scenes, line));
 	const ratio = $derived(plan.width / plan.height);
+	const loadAssets = () => backend.assets(id).then((found) => (assets = found));
 	const failed = (error: unknown) => toast.danger(error instanceof Error ? error.message : t('error.generic'));
 
 	$effect(() => {
@@ -71,7 +72,7 @@
 	$effect(() => watchDeck(id, changed));
 
 	void askAssistant().then((found) => (assistant = found.name));
-	void refresh();
+	void loadAssets().catch(() => undefined);
 
 	onDestroy(() => {
 		void saver.flush();
@@ -80,7 +81,8 @@
 
 	async function refresh() {
 		try {
-			[assets, title] = [await backend.assets(id), (await backend.deck(id)).title];
+			await loadAssets();
+			title = (await backend.deck(id)).title;
 		} catch {
 			return;
 		}

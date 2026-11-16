@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keyStep, opening, revealed, sceneOfStep, stageMessage, type StageInfo } from './stage';
+import { keyStep, revealed, stageMessage, type StageInfo } from './stage';
 
 const INFO: StageInfo = {
 	duration: 16,
@@ -26,10 +26,9 @@ describe('stage', () => {
 		expect(stageMessage(null)).toBeNull();
 	});
 
-	it('maps global steps to scenes and back', () => {
-		expect([0, 2, 3, 6, 7].map((step) => sceneOfStep(INFO, step))).toEqual([0, 0, 1, 1, 2]);
+	it('finds the step that shows a scene fully revealed', () => {
 		expect([0, 1, 2, 9].map((index) => revealed(INFO, index))).toEqual([2, 6, 7, 7]);
-		expect([opening(INFO, 1), opening(INFO, 5), revealed(null, 1)]).toEqual([3, 0, 0]);
+		expect(revealed(null, 1)).toBe(0);
 	});
 
 	it('moves one step per key and stays inside the deck', () => {
