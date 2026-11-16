@@ -3,7 +3,7 @@
 use super::geometry::{Frame, Stage};
 use super::palette::Palette;
 use super::theme::dark;
-use super::xml::{HEAD, NS, TREE};
+use super::xml::{HEAD, NS, TREE, rels};
 
 const TITLE: &str = "<p:nvSpPr><p:cNvPr id=\"2\" name=\"Title 1\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr>\
 <p:nvPr><p:ph type=\"title\"/></p:nvPr></p:nvSpPr>";
@@ -98,4 +98,12 @@ pub(crate) fn notes(note: &str) -> String {
          <a:masterClrMapping/></p:clrMapOvr></p:notes>",
         if body.is_empty() { "<a:p/>".to_owned() } else { body }
     )
+}
+
+/// The relationships of the notes page of slide `number`.
+pub(crate) fn notes_rels(number: usize) -> String {
+    rels(&[
+        ("rId1".to_owned(), "notesMaster", "../notesMasters/notesMaster1.xml".to_owned()),
+        ("rId2".to_owned(), "slide", format!("../slides/slide{number}.xml")),
+    ])
 }

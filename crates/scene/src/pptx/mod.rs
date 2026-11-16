@@ -5,8 +5,8 @@
 //! items (with their nesting level, bulleted or numbered) flow in text boxes, a table is a
 //! table, a PNG, JPEG or GIF picture is embedded. The presenter note goes to the notes page.
 //! The `facile` theme gives the colours. A `raw` scene is an HTML composition: it becomes a
-//! slide that says so in a text box ([`RAW_TEXT`]) and in its notes, until a renderer can supply
-//! a picture of it. Step reveals and timelines do not exist in a file: every step is shown.
+//! slide that shows the picture a renderer made of it ([`write_with`]), or says so in a text box
+//! ([`RAW_TEXT`]) when there is none; its notes say which. Step reveals and timelines do not exist in a file: every step is shown.
 
 mod geometry;
 mod image;
@@ -29,7 +29,7 @@ use zip::write::SimpleFileOptions;
 
 use crate::model::Project;
 
-pub use slide::RAW_TEXT;
+pub use slide::{RAW_PICTURED, RAW_TEXT};
 
 /// Reads the project's files for the writer: the web app answers from its store, the CLI from
 /// the folder.
@@ -45,6 +45,18 @@ impl<F: Fn(&str) -> Option<Vec<u8>>> Files for F {
     }
 }
 
+/// Pictures of scenes, made by a renderer, for the scenes a file cannot hold as shapes.
+pub trait Stills {
+    /// A PNG, JPEG or GIF of the scene at `index` (from 0) at the stage ratio, or `None`.
+    fn still(&self, index: usize) -> Option<Vec<u8>>;
+}
+
+impl<F: Fn(usize) -> Option<Vec<u8>>> Stills for F {
+    fn still(&self, index: usize) -> Option<Vec<u8>> {
+        self(index)
+    }
+}
+
 /// The archive could not be written.
 #[derive(Debug, thiserror::Error)]
 #[error("failed to write the pptx archive: {0}")]
@@ -54,10 +66,11 @@ fn failed(error: impl std::fmt::Display) -> PptxError {
     PptxError(error.to_string())
 }
 
-fn parts(project: &Project, files: &dyn Files) -> Vec<(String, Vec<u8>)> {
+fn parts(project: &Project, files: &dyn Files, stills: &dyn Stills) -> Vec<(String, Vec<u8>)> {
     let config = project.config();
     let stage = geometry::Stage::of(config.size);
-    let mut deck = slide::Deck { stage, palette: palette::of(config.scheme), files, media: Default::default() };
+    let palette = palette::of(config.scheme);
+    let mut deck = slide::Deck { stage, palette, files, stills, media: Default::default() };
     let mut out: Vec<(String, Vec<u8>)> = Vec::new();
     let mut add = |path: String, text: String| out.push((path, text.into_bytes()));
     let mut noted = Vec::new();
@@ -68,7 +81,7 @@ fn parts(project: &Project, files: &dyn Files) -> Vec<(String, Vec<u8>)> {
         if let Some(note) = made.note {
             noted.push(number);
             add(format!("ppt/notesSlides/notesSlide{number}.xml"), masters::notes(&note));
-            add(format!("ppt/notesSlides/_rels/notesSlide{number}.xml.rels"), notes_rels(number));
+            add(format!("ppt/notesSlides/_rels/notesSlide{number}.xml.rels"), masters::notes_rels(number));
         }
     }
     let slides = project.scenes().len();
@@ -86,17 +99,16 @@ fn parts(project: &Project, files: &dyn Files) -> Vec<(String, Vec<u8>)> {
     out
 }
 
-fn notes_rels(number: usize) -> String {
-    xml::rels(&[
-        ("rId1".to_owned(), "notesMaster", "../notesMasters/notesMaster1.xml".to_owned()),
-        ("rId2".to_owned(), "slide", format!("../slides/slide{number}.xml")),
-    ])
-}
-
 /// Writes `project` as a `.pptx` file and answers its bytes. Pictures are read through `files`;
 /// one the project lacks, or that is not a PNG, a JPEG or a GIF, leaves a line naming it.
 pub fn write(project: &Project, files: &dyn Files) -> Result<Vec<u8>, PptxError> {
-    let mut all = parts(project, files);
+    write_with(project, files, &|_: usize| None)
+}
+
+/// [`write`], with a picture for each `raw` scene `stills` has one for: the slide then shows
+/// the picture, full size, instead of the text that says it is animated HTML.
+pub fn write_with(project: &Project, files: &dyn Files, stills: &dyn Stills) -> Result<Vec<u8>, PptxError> {
+    let mut all = parts(project, files, stills);
     all.sort_by_key(|(path, _)| path != "[Content_Types].xml");
     let mut archive = ZipWriter::new(Cursor::new(Vec::new()));
     for (path, bytes) in all {
