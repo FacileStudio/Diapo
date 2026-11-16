@@ -19,6 +19,8 @@ ignore:
   - testdata
   - coverage
   - target
+  # A pinned copy of Vision's tracker, kept byte for byte as Vision ships it.
+  - apps/client/static/vision-tracker.js
 
 # Rust for the crates and the API, TypeScript and Svelte for the client,
 # JavaScript for the scene runtime, and the shell scripts every suite app
