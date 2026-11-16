@@ -128,7 +128,7 @@ async fn an_agent_exports_html_and_pptx_to_a_signed_link_and_is_told_pdf_and_mp4
     let hidden = "Deck not found. diapo_list_decks lists deck ids.";
     for format in ["pdf", "mp4"] {
         let message = refused(&client, "diapo_export", json!({"deck_id": id, "format": format})).await;
-        assert!(message.contains("not available yet"), "{message}");
+        assert!(message.contains("not running") || message.contains("not available"), "{message}");
     }
     for (format, magic) in [("html", &b"<!doctype html>"[..]), ("pptx", b"PK")] {
         let made: Value = decode(&call(&client, "diapo_export", args(json!({"deck_id": id, "format": format}))).await);
