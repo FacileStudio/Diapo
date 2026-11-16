@@ -4,6 +4,12 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-16
+
+### Fixed
+
+- Tabs match the button height and keep even padding (muse v0.32.0).
+
 ### Fixed
 
 - A shared deck's thumbnail showed up a minute or more late: Cloudflare kept the `404` it was
