@@ -25,6 +25,14 @@ All notable changes to Diapo. Versions follow SemVer.
   (`/api/registre/deletions`), token exchange, `GET /api/spaces` and `GET /api/assistant`.
 - Migrations `0002_diapo.sql` (spaces, decks, revisions, assets) and `0003_mcp_actions.sql`.
 - `docs/api.md`: the routes, the `rev` rule, the frame's security model and the MCP tools.
+- The web client: the deck list with first-slide thumbnails, create, rename and trash; the
+  split editor at `/decks/{id}` (CodeMirror source with autosave, error lines from a `422`, a
+  conflict banner on a `409`, live reload on `changed`, live preview following the caret, scene
+  strip, assets panel, insert menu, Bulle sidebar); present mode at `/decks/{id}/present` and
+  the presenter view at `/decks/{id}/presenter`, kept in step through a `BroadcastChannel`; the
+  trash, the settings page and the agent-request page at `/pending`. In French, English,
+  Spanish and German.
+- The app mark is the Solar `presentation-graph-bold-duotone` glyph.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
 

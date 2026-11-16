@@ -79,6 +79,12 @@ drives `window.__scene`: `step(k)` reveals the markers, `seek(t)` maps time to s
 timeline draws the same frame whatever was drawn before, and a single-scene document takes
 `postMessage` commands.
 
+Then `apps/client/e2e/app.e2e.ts` runs the app itself: `e2e/stack.ts` starts the `api` binary on
+a scratch database (`diapo_e2e`, in the Postgres of `TEST_DATABASE_URL`) with the built client
+and one signed-in person, and the test creates a deck, types a second slide, sees the preview
+follow, goes through a refused source and a conflict, then steps through present mode in step
+with the presenter view. `E2E_LOG=1` shows the API's request log.
+
 It needs Playwright's Chromium headless shell under `~/.cache/ms-playwright`:
 `cd apps/client && bunx playwright-core install chromium-headless-shell`. `check.sh` runs it
 last and skips it with a message when the browser is missing or `SKIP_E2E` is set.
