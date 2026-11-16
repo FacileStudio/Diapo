@@ -112,7 +112,7 @@
 			<Blob name={assistant} size={24} />
 			<span class="hidden xl:inline">{ask}</span>
 		</button>
-		<Button size="sm" icon={icons.monitor} href="/decks/{id}/present" data-testid="present">
+		<Button size="md" class="h-11" icon={icons.monitor} href="/decks/{id}/present" data-testid="present">
 			<span class="hidden sm:inline">{t('present.start')}</span>
 		</Button>
 	</div>
