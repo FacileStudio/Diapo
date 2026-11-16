@@ -1,0 +1,112 @@
+name: release
+
+# Builds the `diapo` command line for every platform the suite installer serves and publishes
+# the archives beside checksums.txt. `facile install diapo` composes the download URL from the
+# names below, so they are a contract:
+#
+#   diapo_<version>_<os>_<arch>.tar.gz   the binary bare at the archive root
+#   checksums.txt                        sha256sum of every archive
+#
+# <os> and <arch> are Go's spellings (darwin, linux, amd64, arm64). Linux is built against
+# musl, so one static binary runs on every distribution. Tag-triggered only: this workflow
+# must not grow a push or pull-request trigger.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.os }}/${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            os: darwin
+            arch: amd64
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            os: darwin
+            arch: arm64
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            os: linux
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            os: linux
+            arch: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the tag against the CLI version
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' apps/cli/Cargo.toml | head -n 1)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "apps/cli/Cargo.toml says $version but the tag is $GITHUB_REF_NAME: bump the manifest in the tagged commit" >&2
+            exit 1
+          fi
+
+      - name: Install Rust from rust-toolchain.toml
+        run: |
+          rustup toolchain install
+          rustup target add ${{ matrix.target }}
+
+      - name: Install the musl toolchain
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --release --locked -p diapo-cli --target ${{ matrix.target }}
+
+      - name: Package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          archive="diapo_${version}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz"
+          mkdir -p dist
+          tar -czf "dist/$archive" -C "target/${{ matrix.target }}/release" diapo
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: diapo-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          retention-days: 1
+
+  release:
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write the checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber dist/*.tar.gz dist/checksums.txt
