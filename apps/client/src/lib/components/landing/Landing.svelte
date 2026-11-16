@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		DownloadSection,
 		FeatureSplit,
 		ForDevelopers,
 		LANDING_HEADING,
@@ -14,7 +15,7 @@
 	} from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { bulleIcon, shareIcon } from '$lib/brand';
-	import { CLI_RELEASED, REPO_HREF } from '$lib/downloads';
+	import { CHECKSUMS_HREF, CLI_RELEASED, INSTALL, RELEASES_HREF, REPO_HREF } from '$lib/downloads';
 	import { locale, t } from '$lib/i18n';
 	import BulleTile from './BulleTile.svelte';
 	import EditorDemo from './EditorDemo.svelte';
@@ -110,11 +111,21 @@
 		suiteHref="https://suite.facile.studio/#tarifs"
 	/>
 
-	<div class={width}>
+	<div class="{width} flex flex-col gap-10">
 		<ForDevelopers
 			{rows}
 			description={t('landing.dev.line')}
 			selfHostHref={`https://suite.facile.studio/${locale() === 'fr' ? '' : `${locale()}/`}auto-hebergement`}
 		/>
+		{#if CLI_RELEASED}
+			<DownloadSection
+				mode="device"
+				allHref="/downloads"
+				commands={INSTALL}
+				releasesHref={RELEASES_HREF}
+				checksumsHref={CHECKSUMS_HREF}
+				headingLevel={3}
+			/>
+		{/if}
 	</div>
 </LandingShell>

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button, EmptyState, icons } from '@facile/muse';
-	import { CLI_RELEASED, REPO_HREF } from '$lib/downloads';
+	import { Button, DownloadSection, EmptyState, icons } from '@facile/muse';
+	import { CHECKSUMS_HREF, CLI_RELEASED, INSTALL, RELEASES_HREF, REPO_HREF } from '$lib/downloads';
 	import { t } from '$lib/i18n';
 	import LandingShell from '$lib/components/landing/LandingShell.svelte';
 </script>
@@ -21,6 +21,8 @@
 					{t('downloads.source')}
 				</Button>
 			</EmptyState>
+		{:else}
+			<DownloadSection commands={INSTALL} releasesHref={RELEASES_HREF} checksumsHref={CHECKSUMS_HREF} />
 		{/if}
 	</section>
 </LandingShell>
