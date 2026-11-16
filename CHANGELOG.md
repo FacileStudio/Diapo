@@ -58,6 +58,26 @@ All notable changes to Diapo. Versions follow SemVer.
   embedded pictures and presenter notes become editable shapes; a `raw` scene becomes a slide
   that says it is animated HTML.
 - Migration `0004_share_exports.sql`. New variables: `PUBLIC_URL`, `EMBED_ANCESTORS`.
+- The capture service: `crates/capture` (the job files, and a DevTools Protocol pipe client
+  that makes thumbnails, stills and PDFs from a compiled deck) and `apps/worker`, run as the
+  `diapo-render` service with no network, a read-only root, no capability and Chrome's sandbox
+  on. See `docs/capture.md`.
+- PDF export: one page per slide at the stage size with selectable text, or one page per step
+  with `steps`. Exports are now jobs that run in the background; `GET /api/exports/{id}` reports
+  `done` and `total`.
+- Thumbnails of the first slide after every save, served at `/p/{token}/thumbnail.jpg` and named
+  by `og:image` and oEmbed.
+- A PPTX shows a picture of each animated (`raw`) slide; it falls back to the placeholder, and
+  says so in `notice`, when the capture service is down.
+- MP4 export through Clap, with a token exchanged for the person (`CLAP_URL`).
+- `diapo_export` takes `steps` and `job_id`, waits up to 30 seconds and answers a pending job
+  to read again.
+- Migration `0005_export_progress.sql`. New variable: `CLAP_URL`.
+
+### Changed
+
+- The image moves from distroless to a pinned `debian:bookworm-slim` with a pinned
+  `chrome-headless-shell` and `tini`. The API still never starts a browser.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
 - `apps/cli`: the `diapo` command line. `new`, `serve` (live reload, problems in the terminal

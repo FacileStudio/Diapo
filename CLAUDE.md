@@ -51,6 +51,9 @@ print a skip banner without it: read the output before trusting a green run.
 - **One `access()` authorizes every deck query** (`modules/decks/access.rs`). `None` is `404`.
 - **Every write names its `rev`** and goes through `modules::decks::write::save`, REST and MCP
   alike. A stale `rev` is `409` and changes nothing.
+- **Chrome never runs in the API.** It runs in `diapo-render` (`apps/worker`), with no network and
+  its sandbox on. Never set `--no-sandbox` or `DIAPO_CHROME_SANDBOX=off` in the compose file,
+  and never loosen that service's options (`docs/capture.md`).
 - **A public route never answers the source, a note or the deck id**, never sets a cookie, and is
   `404` for any link that is not live. A share token is stored only as its SHA-256.
 - **The MCP tool names are a contract.** Bulle calls the eight `diapo_*` tools by name.

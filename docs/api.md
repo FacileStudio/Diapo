@@ -41,7 +41,7 @@ A deck with no space is personal: only its owner reaches it. An instance admin g
 | `POST /decks/{id}/share` | editor | Shares the deck. `201` with `{shared, created_at, url}` for a new link; `200` without `url` when the deck is already shared. `?rotate=true` revokes the live link first |
 | `GET /decks/{id}/share` | editor | `{shared, created_at}` |
 | `DELETE /decks/{id}/share` | editor | Revokes the link, `204`; `404` when the deck is not shared |
-| `POST /decks/{id}/exports` | viewer | Body `{format}`: `html`, `pptx`, `pdf` or `mp4`. `201` with the finished job. See "Exports" |
+| `POST /decks/{id}/exports` | viewer | Body `{format, steps?}`: `html`, `pptx`, `pdf` or `mp4`. `201` with the job. See "Exports" |
 | `GET /exports/{id}` | viewer of its deck | The job |
 | `GET /exports/{id}/file` | viewer of its deck, or a signed link | The file, as a download |
 | `GET /spaces` | session | The caller's spaces and roles, mirrored from Registre |
@@ -238,35 +238,51 @@ The size is 960 wide at the deck's stage ratio, shrunk to `maxwidth` and `maxhei
 
 ### Thumbnails
 
-Nothing renders a thumbnail yet. The storage is fixed so the capture worker only has to write a
-file: `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`, a JPEG 1280 pixels wide at the stage ratio, one
-per deck revision. The routes read the file of the deck's current `rev`: when it is there,
-`thumbnail.jpg` serves it and `og:image`, the oEmbed fields and `thumbnail` appear by themselves.
+After a deck is created, saved or shared, the capture service makes the thumbnail of its new
+revision: `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`, a JPEG 1280 pixels wide at the stage ratio.
+Saves within three seconds are captured once, one job per deck is in flight, and the newest
+revision wins: once its file is in place the older ones are removed. The routes read the file
+of the deck's current `rev`: when it is there, `thumbnail.jpg` serves it and `og:image`, the
+oEmbed fields and `thumbnail` appear. While the service is down, or for the seconds a capture
+takes, they answer as if the deck had no picture.
 
 ## Exports
 
-`POST /decks/{id}/exports` with `{"format": "html"}` builds the file from the deck as it is now
-and answers the finished job:
+`POST /decks/{id}/exports` with `{"format": "pdf", "steps": false}` queues the export of the deck
+as it is now and starts it. It waits up to two seconds: a quick job is answered finished, a
+slower one as it is. Read it again with `GET /exports/{id}` until `status` is `done` or `failed`.
 
 ```json
-{"id": "...", "deck_id": "...", "rev": 3, "format": "html", "status": "done", "error": "",
- "file_name": "Q3-review.html", "size": 48211, "created_at": "...", "download_url": "/api/exports/<id>/file"}
+{"id": "...", "deck_id": "...", "rev": 3, "format": "pdf", "steps": false, "status": "running",
+ "done": 2, "total": 12, "error": "", "notice": "", "file_name": "Q3-review.pdf", "size": 0,
+ "created_at": "...", "download_url": null}
 ```
 
-- `status` is `queued`, `running`, `done` or `failed`. Today a job is built before the answer,
-  one at a time in the process, so the answer is `done` or `failed`. A client should still read
-  `status` and poll `GET /exports/{id}`: slower formats will answer `queued`.
+- `status` is `queued`, `running`, `done` or `failed`. Jobs run one at a time. `done` and `total`
+  count pages or frames; both are 0 while unknown. `download_url` appears with `done`.
 - `html`: one self-contained file. `scene::compile` with every asset the deck has inlined as a
   `data:` URI; it opens offline.
-- `pptx`: an editable PowerPoint file, written by `scene::pptx` (see below).
-- `pdf` and `mp4`: `503 unavailable`, and no job is created. They need the capture worker.
+- `pptx`: an editable PowerPoint file, written by `scene::pptx` (see below). The pictures of its
+  animated (`raw`) slides come from the capture service. When the service is down or slower than
+  a minute, the slides are placeholders, the job is still `done`, and `notice` says so.
+- `pdf`: made by the capture service ([capture.md](capture.md)). One page per slide at the stage
+  size with every step revealed, and text that can be selected. `steps: true` gives one page per
+  step. `503 unavailable`, and no job, when the service is down.
+- `mp4`: rendered by Clap. Diapo exchanges the person's Registre grant for a token of audience
+  `clap` with the scope `clap.write`, posts the bundle (`index.html` and the assets, 30 frames a
+  second, the stage size) to `POST <CLAP_URL>/api/renders`, follows the render, and copies the
+  video here once it is done. `done` and `total` are frames. A scene lasts its `duration`, or
+  `step_duration` for each of its stops. Clap's limits apply: an even size of at most 1920 by
+  1080 and 600 seconds; a refusal fails the job with Clap's reason. `503`, and no job, when
+  `CLAP_URL` is empty or Registre is not configured.
 - `GET /exports/{id}/file` is a download (`Content-Disposition: attachment`), under a `sandbox`
   policy. An HTML export is answered as `application/octet-stream`: user HTML is never served
-  as a page of this origin.
+  as a page of this origin. `412` until the job is done.
 - A signed link, `/api/exports/{id}/file?token=<expires>.<hmac>`, works for one hour without a
   session. It is signed with the frame key under the scope `export`, so a frame token never
   opens an export. `diapo_export` answers such a link for the agent to hand to the person.
-- Files live in `DATA_DIR/exports/<job id>`. Jobs and files are removed after one day.
+- Files live in `DATA_DIR/exports/<job id>`. Jobs and files are removed after one day. A job
+  left `queued` or `running` by a restart is marked `failed` at boot.
 
 ### What a PPTX holds
 
@@ -286,7 +302,7 @@ scene is one slide, at the deck's stage ratio on a 13.333 inch wide slide.
 | The presenter note | The notes page |
 | `layout: center`, `cover`, `split` | Centered text; text set at the bottom; text left, pictures and tables right |
 | `scheme: dark` | The dark colours of the `facile` theme |
-| A `raw` scene | A slide whose text box says it is animated HTML, repeated in its notes |
+| A `raw` scene | A picture of its last frame, full size, when the capture service made one; else a slide whose text box says it is animated HTML. Its notes say which |
 | Step markers, timelines, raw HTML in a markdown scene | Dropped: a file shows every step |
 
 ## MCP
@@ -304,7 +320,7 @@ verifier; the RFC 9728 metadata is at `/.well-known/oauth-protected-resource/mcp
 | `diapo_create_deck` | write | `title`, `source?`, `space_id?` | `id`, `title`, `rev`, `scenes`, `url` |
 | `diapo_write_deck` | write | `deck_id`, `source`, `rev` | `id`, `title`, `rev`, `scenes`, `url` |
 | `diapo_edit_deck` | write | `deck_id`, `old_string`, `new_string`, `rev` | `id`, `title`, `rev`, `scenes`, `url` |
-| `diapo_export` | write | `deck_id`, `format` (`html`, `pdf`, `pptx`, `mp4`) | `id`, `status`, `download_url`, `file_name`. `download_url` is a signed link that works for one hour without signing in. `pdf` and `mp4` answer a tool error |
+| `diapo_export` | write | `deck_id`, `format` (`html`, `pdf`, `pptx`, `mp4`), `steps?`, `job_id?` | `id`, `status`, `download_url`, `file_name`, `message`. It waits up to 30 seconds. Done: `download_url` is a signed link that works for one hour without signing in. Slower: the job is answered pending, to be read by calling again with `job_id` |
 | `diapo_delete_deck` | write | `deck_id` | `status` (`pending_confirmation`, `declined`, `done`), `confirm_url?`, `message` |
 
 - `url` is the page a person opens: `https://<host>/decks/<id>`, on the origin of `MCP_RESOURCE`.
