@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, backend } from '$lib/backend';
 import type { ExportFormat, ExportJob } from '$lib/types';
+import { ASK_AGAIN_AFTER } from './export-memory';
 import { Exporter } from './exporting.svelte';
 
 const job = (format: ExportFormat, status: ExportJob['status']): ExportJob => ({
@@ -67,6 +68,17 @@ describe('Exporter', () => {
 		]);
 	});
 
+	it('believes a 503 for a while before asking again', async () => {
+		const start = vi.spyOn(backend, 'startExport').mockImplementation(soon);
+		await new Exporter('d1').probe();
+		const again = new Exporter('d1');
+		await again.probe();
+		expect([start.mock.calls.length, again.rows.pdf.state]).toEqual([2, 'soon']);
+		vi.setSystemTime(Date.now() + ASK_AGAIN_AFTER);
+		await new Exporter('d1').probe();
+		expect(start).toHaveBeenCalledTimes(4);
+	});
+
 	it('lights a format up by itself the day the API produces it, and stops probing it', async () => {
 		const start = vi.spyOn(backend, 'startExport');
 		start.mockImplementation((_id, format) => (format === 'pdf' ? Promise.resolve(job('pdf', 'done')) : soon()));
@@ -74,6 +86,7 @@ describe('Exporter', () => {
 		await first.probe();
 		expect([first.rows.pdf.state, first.rows.mp4.state]).toEqual(['done', 'soon']);
 		start.mockClear();
+		vi.setSystemTime(Date.now() + ASK_AGAIN_AFTER);
 		const later = new Exporter('d1');
 		await later.probe();
 		expect(start.mock.calls.map(([, format]) => format)).toEqual(['mp4']);

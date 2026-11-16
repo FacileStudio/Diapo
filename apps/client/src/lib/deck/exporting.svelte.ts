@@ -1,5 +1,6 @@
 import { ApiError, backend } from '$lib/backend';
 import type { ExportFormat, ExportJob } from '$lib/types';
+import { ASK_AGAIN_AFTER, asked, known, learn, refused } from './export-memory';
 
 /** Where one format stands in the export dialog. `soon` means the API cannot produce it yet. */
 export type ExportState = 'idle' | 'working' | 'done' | 'failed' | 'soon';
@@ -13,30 +14,12 @@ export interface ExportRow {
 /** The formats, in the order the dialog lists them. */
 export const EXPORT_FORMATS: readonly ExportFormat[] = ['pptx', 'html', 'pdf', 'mp4'];
 
-const KNOWN_KEY = 'diapo.exports.ready';
-
-function known(): ExportFormat[] {
-	try {
-		return JSON.parse(localStorage.getItem(KNOWN_KEY) ?? '["html","pptx"]') as ExportFormat[];
-	} catch {
-		return ['html', 'pptx'];
-	}
-}
-
-function learn(format: ExportFormat): void {
-	try {
-		localStorage.setItem(KNOWN_KEY, JSON.stringify([...new Set([...known(), format])]));
-	} catch {
-		return;
-	}
-}
-
 const unavailable = (error: unknown) => error instanceof ApiError && error.status === 503;
 
 /**
- * The exports of one deck. A format this browser has never seen work is asked once when the
- * dialog opens: `503 unavailable` shows it as coming soon, and an answer with a job shows that
- * job, so a format lights up by itself the day the API can produce it. A job that is not
+ * The exports of one deck. A format this browser has never seen work is asked when the dialog
+ * opens: `503 unavailable` shows it as coming soon and is believed for `ASK_AGAIN_AFTER`, and an
+ * answer with a job shows that job, so a format lights up by itself once the API can produce it. A job that is not
  * finished is polled every `interval` ms until it is `done` or `failed`.
  */
 export class Exporter {
@@ -57,7 +40,8 @@ export class Exporter {
 	async probe(): Promise<void> {
 		const unsure = EXPORT_FORMATS.filter((format) => !known().includes(format) && this.rows[format].state === 'idle');
 		for (const format of unsure) this.rows[format].state = 'soon';
-		await Promise.all(unsure.map((format) => this.start(format)));
+		const due = unsure.filter((format) => Date.now() - (asked()[format] ?? 0) >= ASK_AGAIN_AFTER);
+		await Promise.all(due.map((format) => this.start(format)));
 	}
 
 	/** Starts the export of `format` and follows its job to the end. */
@@ -70,6 +54,7 @@ export class Exporter {
 			learn(format);
 			await this.follow(format, job);
 		} catch (error) {
+			if (unavailable(error)) refused(format);
 			this.rows[format] = { state: unavailable(error) ? 'soon' : before === 'soon' ? 'soon' : 'failed', job: null };
 		}
 	}
