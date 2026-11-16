@@ -69,6 +69,7 @@ pub async fn create(state: &AppState, user_id: i64, deck: Uuid, rotate: bool) ->
     if rotate {
         retire(state, deck).await?;
     }
+    state.thumbs.request(state, deck);
     match insert(state, user_id, deck).await? {
         Some(link) => Ok((link, true)),
         None => Ok((live(state, deck).await?, false)),

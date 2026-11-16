@@ -44,6 +44,8 @@ pub struct Config {
     /// `EMBED_ANCESTORS`: the origins that may frame `/embed/{token}`, separated by spaces or
     /// commas. Default: `https://prisme.facile.studio`.
     pub embed_ancestors: Vec<String>,
+    /// `CLAP_URL`: Clap's origin, for MP4 exports. Empty turns them off.
+    pub clap_url: String,
 }
 
 impl Config {
@@ -73,6 +75,7 @@ impl Config {
             bulle: Bulle::from_vars(vars)?,
             public_url,
             embed_ancestors: ancestors(vars)?,
+            clap_url: text("CLAP_URL"),
             core,
         };
         config.check()?;

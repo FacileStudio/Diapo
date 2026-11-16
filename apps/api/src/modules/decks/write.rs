@@ -62,5 +62,6 @@ pub async fn save(state: &AppState, author: &Author, id: Uuid, request: SourceRe
     source::checked(&request.source, state.limits.source)?;
     let row = store(state, author, id, &request).await?;
     state.events.changed(row.id, row.rev);
+    state.thumbs.request(state, row.id);
     Ok(answer(row, have))
 }
