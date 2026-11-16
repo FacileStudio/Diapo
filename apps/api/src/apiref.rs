@@ -51,6 +51,7 @@ const ROUTES: &[Row] = &[
         "Builds an export {format: html|pdf|pptx|mp4} and answers its job",
         "201",
     ),
+    ("GET", "/exports/formats", "exports", "Which formats an export would start for right now", "200"),
     ("GET", "/exports/{id}", "exports", "An export job", "200"),
     (
         "GET",

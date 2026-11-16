@@ -97,3 +97,31 @@ async fn a_save_makes_the_thumbnail_of_the_new_revision_and_drops_the_old_one() 
     };
     worker::until("the thumbnail of rev 3 alone", kept).await;
 }
+
+#[tokio::test]
+async fn the_formats_route_says_what_would_start_without_starting_anything() {
+    let Some(pool) = common::pool("diapo_capture_formats").await else { return };
+    let app = common::app(pool).await;
+    let ada = app.person("ada").await;
+    let before = app.call("GET", "/api/exports/formats", Some(&ada), None).await.json();
+    let expected = json!({"formats": [
+        {"format": "html", "available": true},
+        {"format": "pptx", "available": true, "notes": "raw scenes as placeholders"},
+        {"format": "pdf", "available": false, "reason": "the capture service is not running"},
+        {"format": "mp4", "available": false, "reason": "video export is not set up on this server"},
+    ]});
+    assert_eq!(before, expected);
+    assert_eq!(app.call("GET", "/api/exports/formats", None, None).await.status, 401);
+    let _worker = worker::start(&app);
+    let after = app.call("GET", "/api/exports/formats", Some(&ada), None).await.json();
+    assert_eq!(
+        (after["formats"][2]["available"].clone(), after["formats"][1]["notes"].clone()),
+        (json!(true), json!("raw scenes as pictures"))
+    );
+    let jobs: i64 = sqlx::query_scalar("SELECT count(*) FROM exports WHERE created_by = $1")
+        .bind(ada.user_id)
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!(jobs, 0);
+}

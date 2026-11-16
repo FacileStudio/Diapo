@@ -54,6 +54,7 @@ async fn read(State(mock): State<Mock>, headers: HeaderMap, Path(id): Path<Strin
 pub async fn mock(fails: bool) -> (String, Mock) {
     let seen: Mock = Arc::new(Mutex::new(Seen { fails, ..Seen::default() }));
     let router = Router::new()
+        .route("/health", get(|| async { "ok" }))
         .route("/api/renders", post(queue))
         .route("/api/renders/{id}", get(read))
         .route("/api/renders/{id}/file", get(|| async { VIDEO }))
