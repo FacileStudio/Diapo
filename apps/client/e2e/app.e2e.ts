@@ -101,3 +101,53 @@ test('present mode steps through reveals and scenes, in step with the presenter 
 	await editor.keyboard.press('Escape');
 	await editor.waitForURL(/\/decks\/[^/]+$/);
 });
+
+test('a shared deck opens without a session, as a page and as an embed, until the link is turned off', async () => {
+	await editor.getByTestId('share-open').click();
+	await editor.getByTestId('share-create').click();
+	const url = await editor.getByTestId('share-url').inputValue();
+	const token = url.split('/p/')[1];
+	expect(url).toBe(`${stack.base}/p/${token}`);
+	expect(await editor.getByTestId('share-embed').inputValue()).toContain(`src="${stack.base}/embed/${token}"`);
+
+	const context = await browser.newContext({ locale: 'fr-FR', viewport: { width: 1280, height: 720 } });
+	const visitor = await context.newPage();
+	const calls: string[] = [];
+	visitor.on('request', (request) => calls.push(new URL(request.url()).pathname));
+	await visitor.goto(url);
+	await waitData(visitor, 'viewer', 'last', 3);
+	await visitor.keyboard.press('ArrowRight');
+	await visitor.getByTestId('zone-next').click();
+	await waitData(visitor, 'viewer', 'step', 2);
+	expect(await (await stageFrame(visitor, 'viewer')).locator('.scene.is-active h2').textContent()).toBe('Seconde');
+	expect(await visitor.getByTestId('made-with').getAttribute('href')).toBe('/');
+
+	await visitor.goto(`${stack.base}/embed/${token}`);
+	await waitData(visitor, 'viewer', 'last', 3);
+	expect(await visitor.getByTestId('viewer-open').getAttribute('href')).toBe(`/p/${token}`);
+	expect(await visitor.getByTestId('made-with').count()).toBe(0);
+	const own = calls.filter((path) => path.startsWith('/api/') && !path.startsWith('/api/public/'));
+	expect(own).toEqual([]);
+
+	await editor.getByTestId('share-revoke').click();
+	await waitData(editor, 'share-dialog', 'status', 'off');
+	await visitor.goto(url);
+	await visitor.getByTestId('link-gone').getByText('Ce lien n’est plus disponible').waitFor({ timeout: 10_000 });
+	await context.close();
+	await editor.keyboard.press('Escape');
+});
+
+test('an HTML export downloads a file, and the formats the API cannot make yet say soon', async () => {
+	await editor.getByTestId('export-open').click();
+	await waitData(editor, 'export-pdf', 'state', 'soon');
+	await waitData(editor, 'export-mp4', 'state', 'soon');
+	await editor.getByTestId('export-html').getByRole('button').click();
+	await waitData(editor, 'export-html', 'state', 'done');
+	const [download] = await Promise.all([
+		editor.waitForEvent('download'),
+		editor.getByTestId('export-html').getByTestId('export-download').click()
+	]);
+	expect(download.suggestedFilename()).toMatch(/\.html$/);
+	expect(await Bun.file(await download.path()).text()).toContain('Seconde');
+	await editor.keyboard.press('Escape');
+});

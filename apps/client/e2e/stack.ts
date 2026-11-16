@@ -70,6 +70,7 @@ export async function startStack(): Promise<Stack> {
 		...process.env,
 		DATABASE_URL: url,
 		PORT: new URL(base).port,
+		PUBLIC_URL: base,
 		CLIENT_DIR: clientDir,
 		DATA_DIR: dataDir,
 		OIDC_ISSUER: '',
