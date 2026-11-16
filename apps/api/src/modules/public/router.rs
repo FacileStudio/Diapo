@@ -12,7 +12,7 @@ use crate::extract::Params;
 use crate::modules::assets::serve::send;
 use crate::modules::decks::error::DeckError;
 use crate::modules::frame::FrameQuery;
-use crate::modules::frame::render::{Links, compiled, cookieless, policy, respond};
+use crate::modules::frame::render::{Links, compiled, cookieless, policy, respond, uncached};
 use crate::state::AppState;
 
 async fn deck(State(state): State<AppState>, Path(token): Path<String>) -> Result<Json<PublicDeck>> {
@@ -52,5 +52,6 @@ pub fn api_routes(ancestors: &[String]) -> std::result::Result<Router<AppState>,
             "/public/decks/{token}/assets/{*name}",
             get(asset).layer(axum::middleware::from_fn_with_state(loose(), rate_limit)),
         )
-        .layer(axum::middleware::map_response(cookieless)))
+        .layer(axum::middleware::map_response(cookieless))
+        .layer(axum::middleware::map_response(uncached)))
 }

@@ -116,7 +116,8 @@ async fn a_thumbnail_file_turns_on_the_picture_route_og_image_and_the_oembed_fie
     let ada = app.person("ada").await;
     let (id, token) = fixture::shared(&app, &ada, None).await;
     let picture = format!("/p/{token}/thumbnail.jpg");
-    assert_eq!(app.call("GET", &picture, None, None).await.status, 404);
+    let missing = app.call("GET", &picture, None, None).await;
+    assert_eq!((missing.status.as_u16(), missing.headers["cache-control"].to_str().unwrap()), (404, "no-store"));
     let file = api::modules::public::thumbnail::path(&app.state.data_dir, id.parse().unwrap(), 1);
     std::fs::create_dir_all(file.parent().unwrap()).unwrap();
     std::fs::write(&file, b"\xff\xd8\xff-jpeg").unwrap();
