@@ -1,0 +1,35 @@
+[tools]
+lefthook = "latest"
+bun = "1.4.2"
+
+[hooks]
+postinstall = "lefthook install"
+
+[tasks.bootstrap]
+description = "Fetch the workspace crates and install the client"
+run = "cargo fetch --locked && cd apps/client && bun install --frozen-lockfile"
+
+[tasks.db-up]
+description = "Start the repo-local Postgres on 127.0.0.1:5673"
+run = "sh ./scripts/postgres-up.sh"
+
+[tasks.db-down]
+description = "Stop the repo-local Postgres"
+run = "sh ./scripts/postgres-down.sh"
+
+[tasks.dev]
+description = "Run the API against the local database"
+env = { DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5673/postgres?sslmode=disable", PORT = "4000" }
+run = "cargo run -p api"
+
+[tasks.build]
+description = "Build the API in release mode"
+run = "cargo build --release --locked -p api"
+
+[tasks.check]
+description = "Run the full quality gate"
+run = "sh ./scripts/check.sh"
+
+[tasks.e2e]
+description = "Drive the compiled scene fixtures in headless Chromium"
+run = "sh ./scripts/e2e.sh"

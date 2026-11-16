@@ -1,0 +1,91 @@
+services:
+  diapo-db:
+    container_name: diapo-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: diapo
+      POSTGRES_PASSWORD: diapo-internal-db
+      POSTGRES_DB: diapo
+    volumes:
+    - db_data:/var/lib/postgresql/data
+    expose:
+    - '5432'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U diapo
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+  diapo-data-owner:
+    image: busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+    restart: "no"
+    command: ["chown", "-R", "65532:65532", "/data"]
+    volumes:
+    - data:/data
+  diapo-api:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+    - '4000'
+    networks:
+    - default
+    - dokploy-network
+    volumes:
+    - data:/data
+    labels:
+      journal.app: diapo-api
+      traefik.enable: 'true'
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.diapo-web.rule: "Host(`diapo.facile.studio`)"
+      traefik.http.routers.diapo-web.entrypoints: web
+      traefik.http.routers.diapo-web.middlewares: redirect-to-https@file
+      traefik.http.routers.diapo-web.service: diapo-api
+      traefik.http.routers.diapo-secure.rule: "Host(`diapo.facile.studio`)"
+      traefik.http.routers.diapo-secure.entrypoints: websecure
+      traefik.http.routers.diapo-secure.tls.certresolver: letsencrypt
+      traefik.http.routers.diapo-secure.service: diapo-api
+      traefik.http.services.diapo-api.loadbalancer.server.port: "4000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://diapo:diapo-internal-db@diapo-db:5432/diapo?sslmode=disable}
+      PORT: '4000'
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TRUSTED_PROXIES: 'private,cloudflare'
+      DATA_DIR: /data
+      JOURNAL_URL: ${JOURNAL_URL:-}
+      JOURNAL_TOKEN: ${JOURNAL_TOKEN:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      PORTE_TOKEN_KEY: ${PORTE_TOKEN_KEY:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      OIDC_SUCCESS_URL: ${OIDC_SUCCESS_URL:-}
+      OIDC_CLI_AUDIENCE: ${OIDC_CLI_AUDIENCE:-}
+    healthcheck:
+      test: ["CMD", "/api", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+      start_interval: 1s
+    depends_on:
+      diapo-db:
+        condition: service_healthy
+      diapo-data-owner:
+        condition: service_completed_successfully
+    deploy:
+      replicas: 1
+volumes:
+  db_data:
+    name: diapo_db_data
+  data:
+    name: diapo_data
+networks:
+  dokploy-network:
+    external: true
