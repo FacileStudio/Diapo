@@ -22,6 +22,7 @@
 	const sharing = new Sharing(untrack(() => id));
 
 	let rotating = $state(false);
+	let revoking = $state(false);
 
 	const embed = $derived(sharing.url ? embedSnippet(sharing.url, title, width, height) : '');
 	const failed = (error: unknown) => toast.danger(error instanceof Error ? error.message : t('error.generic'));
@@ -91,7 +92,7 @@
 				<Button
 					variant="ghost-danger"
 					disabled={sharing.busy}
-					onclick={() => sharing.revoke().catch(failed)}
+					onclick={() => (revoking = true)}
 					data-testid="share-revoke"
 				>
 					{t('share.revoke')}
@@ -110,4 +111,18 @@
 	cancelLabel={t('action.cancel')}
 	onConfirm={rotate}
 	onCancel={() => (rotating = false)}
+/>
+
+<ConfirmModal
+	open={revoking}
+	tone="danger"
+	title={t('share.revoke.title')}
+	description={t('share.revoke.hint')}
+	confirmLabel={t('share.revoke')}
+	cancelLabel={t('action.cancel')}
+	onConfirm={() => {
+		revoking = false;
+		sharing.revoke().catch(failed);
+	}}
+	onCancel={() => (revoking = false)}
 />

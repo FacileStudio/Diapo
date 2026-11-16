@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, backend } from '$lib/backend';
 import type { ExportFormat, ExportJob } from '$lib/types';
-import { ASK_AGAIN_AFTER } from './export-memory';
 import { Exporter } from './exporting.svelte';
 
 const job = (format: ExportFormat, status: ExportJob['status']): ExportJob => ({
@@ -13,6 +12,9 @@ const job = (format: ExportFormat, status: ExportJob['status']): ExportJob => ({
 	size: 10,
 	download_url: status === 'done' ? `/api/exports/job-${format}/file` : null
 });
+
+const EXPORT_STATES = (exporter: Exporter) =>
+	(['html', 'pptx', 'pdf', 'mp4'] as const).map((format) => exporter.rows[format].state);
 
 const soon = () => Promise.reject(new ApiError(503, 'unavailable', 'not available yet'));
 
@@ -56,40 +58,32 @@ describe('Exporter', () => {
 		expect(exporter.rows.pptx.state).toBe('failed');
 	});
 
-	it('shows a format the API answers 503 for as coming soon, without an error', async () => {
-		const start = vi.spyOn(backend, 'startExport').mockImplementation(soon);
+	it('asks the API which formats work and starts nothing to find out', async () => {
+		const start = vi.spyOn(backend, 'startExport');
+		const formats = vi.spyOn(backend, 'exportFormats').mockResolvedValue({
+			formats: [
+				{ format: 'html', available: true },
+				{ format: 'pptx', available: true, notes: 'raw scenes as placeholders' },
+				{ format: 'pdf', available: false, reason: 'the capture service is not running' },
+				{ format: 'mp4', available: false }
+			]
+		});
 		const exporter = new Exporter('d1');
 		await exporter.probe();
-		expect(start.mock.calls.map(([, format]) => format).sort()).toEqual(['mp4', 'pdf']);
-		expect([exporter.rows.pdf.state, exporter.rows.mp4.state, exporter.rows.html.state]).toEqual([
-			'soon',
-			'soon',
-			'idle'
-		]);
+		expect(start).not.toHaveBeenCalled();
+		expect(EXPORT_STATES(exporter)).toEqual(['idle', 'idle', 'soon', 'soon']);
+		formats.mockResolvedValue({ formats: [{ format: 'pdf', available: true }] });
+		await exporter.probe();
+		expect(EXPORT_STATES(exporter)).toEqual(['idle', 'idle', 'idle', 'soon']);
 	});
 
-	it('believes a 503 for a while before asking again', async () => {
-		const start = vi.spyOn(backend, 'startExport').mockImplementation(soon);
-		await new Exporter('d1').probe();
-		const again = new Exporter('d1');
-		await again.probe();
-		expect([start.mock.calls.length, again.rows.pdf.state]).toEqual([2, 'soon']);
-		vi.setSystemTime(Date.now() + ASK_AGAIN_AFTER);
-		await new Exporter('d1').probe();
-		expect(start).toHaveBeenCalledTimes(4);
-	});
-
-	it('lights a format up by itself the day the API produces it, and stops probing it', async () => {
-		const start = vi.spyOn(backend, 'startExport');
-		start.mockImplementation((_id, format) => (format === 'pdf' ? Promise.resolve(job('pdf', 'done')) : soon()));
-		const first = new Exporter('d1');
-		await first.probe();
-		expect([first.rows.pdf.state, first.rows.mp4.state]).toEqual(['done', 'soon']);
-		start.mockClear();
-		vi.setSystemTime(Date.now() + ASK_AGAIN_AFTER);
-		const later = new Exporter('d1');
-		await later.probe();
-		expect(start.mock.calls.map(([, format]) => format)).toEqual(['mp4']);
-		expect(later.rows.pdf.state).toBe('idle');
+	it('keeps every format offered when the capability answer fails, and shows a 503 as coming soon', async () => {
+		vi.spyOn(backend, 'exportFormats').mockRejectedValue(new ApiError(0, 'network', 'offline'));
+		vi.spyOn(backend, 'startExport').mockImplementation(soon);
+		const exporter = new Exporter('d1');
+		await exporter.probe();
+		expect(EXPORT_STATES(exporter)).toEqual(['idle', 'idle', 'idle', 'idle']);
+		await exporter.start('pdf');
+		expect(exporter.rows.pdf.state).toBe('soon');
 	});
 });

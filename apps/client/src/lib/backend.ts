@@ -3,6 +3,7 @@ import type {
 	AssistantProfile,
 	Deck,
 	DeckSummary,
+	ExportCapability,
 	ExportFormat,
 	ExportJob,
 	PendingAction,
@@ -155,6 +156,7 @@ export const backend = {
 	publicDeck: (token: string) =>
 		request<PublicDeck>(`/public/decks/${encodeURIComponent(token)}`, { credentials: 'omit' }),
 	startExport: (id: string, format: ExportFormat) => request<ExportJob>(deck(id, '/exports'), send('POST', { format })),
+	exportFormats: () => request<{ formats: ExportCapability[] }>('/exports/formats'),
 	exportJob: (id: string) => request<ExportJob>(`/exports/${encodeURIComponent(id)}`),
 	assistant: () => request<AssistantProfile>('/assistant'),
 	actions: () => request<{ actions: PendingAction[]; truncated?: boolean }>('/mcp/pending'),
