@@ -19,8 +19,12 @@ compile crates/scene/fixtures/steps/diapo.md "$out/steps.html"
 compile crates/scene/fixtures/steps/diapo.md "$out/steps-1.html" 1
 compile crates/scene/fixtures/raw/clap.md "$out/clap.html"
 
+cargo build --quiet --locked -p api
+
 (
   cd apps/client
   [ -d node_modules ] || bun install --frozen-lockfile >/dev/null
+  bun run build
   SCENE_E2E_DIR="$out" bun test --timeout 60000 ./e2e/scene.e2e.ts
+  bun test --timeout 120000 ./e2e/app.e2e.ts
 )
