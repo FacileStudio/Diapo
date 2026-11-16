@@ -48,24 +48,10 @@ export function stageMessage(data: unknown): StageMessage | null {
 	return { type: 'scene:ready', duration: raw.duration, steps: raw.steps, scenes: list };
 }
 
-/** The index of the scene that holds the global step `step`. */
-export function sceneOfStep(info: StageInfo, step: number): number {
-	let found = 0;
-	info.scenes.forEach((scene, index) => {
-		if (scene.first <= step) found = index;
-	});
-	return found;
-}
-
 /** The global step that shows scene `index` with every step revealed; 0 when the scene is unknown. */
 export function revealed(info: StageInfo | null, index: number): number {
 	const scene = info?.scenes[Math.min(index, (info?.scenes.length ?? 1) - 1)];
 	return scene ? scene.first + scene.steps : 0;
-}
-
-/** The global step that opens scene `index`, nothing revealed yet. */
-export function opening(info: StageInfo | null, index: number): number {
-	return info?.scenes[index]?.first ?? 0;
 }
 
 const MOVES: Record<string, number> = {
