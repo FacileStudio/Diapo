@@ -1,10 +1,12 @@
 #![allow(dead_code)]
 
+pub mod clap_mock;
 pub mod directory;
 pub mod fixture;
 pub mod http;
 pub mod mcp;
 pub mod upload;
+pub mod worker;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -67,9 +69,12 @@ pub async fn app_with(pool: PgPool, vars: &[(&str, &str)]) -> App {
     pairs.extend_from_slice(vars);
     let config = Config::from_vars(&Vars::from_pairs(pairs)).unwrap();
     let kits = Kits::new(&config, &pool).await.unwrap();
+    let data = data_dir();
     let state = AppState {
         issuer: Arc::from(ISSUER),
-        data_dir: Arc::new(data_dir()),
+        captures: api::captures::Captures::under(&data),
+        thumbs: api::captures::thumbs::Thumbs::after(std::time::Duration::from_millis(50)),
+        data_dir: Arc::new(data),
         client_dir: Arc::new(client_dir()),
         ..api::server::state(&config, pool.clone(), &kits)
     };

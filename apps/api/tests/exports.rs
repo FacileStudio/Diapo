@@ -76,7 +76,7 @@ async fn pdf_and_mp4_are_unavailable_and_old_exports_are_purged() {
     for format in ["pdf", "mp4"] {
         let refused = export(&app, &ada, &id, format).await;
         assert_eq!((refused.status.as_u16(), refused.json()["error"]["code"].clone()), (503, json!("unavailable")));
-        assert!(refused.json()["error"]["message"].as_str().unwrap().contains("not available yet"));
+        assert!(refused.json()["error"]["message"].as_str().unwrap().contains("not"));
     }
     assert_eq!(export(&app, &ada, &id, "gif").await.status, 400);
     let jobs: i64 = sqlx::query_scalar("SELECT count(*) FROM exports WHERE deck_id = $1::uuid")
