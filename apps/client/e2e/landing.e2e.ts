@@ -74,3 +74,12 @@ test('no link of the public pages is dead inside the app', async () => {
 	}
 	await page.context().close();
 });
+
+test('the downloads page offers the install commands and the release files', async () => {
+	const page = await visitor('/downloads', 390);
+	const links = await page.locator('main a').evaluateAll((all) => all.map((a) => a.getAttribute('href')));
+	expect(links).toContain('https://github.com/FacileStudio/Diapo/releases');
+	expect(links).toContain('https://github.com/FacileStudio/Diapo/releases/latest/download/checksums.txt');
+	expect(await page.locator('main').innerText()).toContain('facile install diapo');
+	await page.context().close();
+});
