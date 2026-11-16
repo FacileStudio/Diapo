@@ -4,6 +4,13 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+### Fixed
+
+- A shared deck's thumbnail showed up a minute or more late: Cloudflare kept the `404` it was
+  answered before the picture existed. Public answers that name no caching are now `no-store`.
+- The export dialog says what a PowerPoint holds for animated slides, pictures or placeholders,
+  from `GET /api/exports/formats`.
+
 ### Added
 
 - The capture service: `crates/capture` (the job files, and a DevTools Protocol pipe client

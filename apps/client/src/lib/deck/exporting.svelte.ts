@@ -27,6 +27,8 @@ export class Exporter {
 		pdf: { state: 'idle', job: null },
 		mp4: { state: 'idle', job: null }
 	});
+	/** What the API says the PowerPoint holds for animated slides, once it has answered. */
+	pictures = $state<boolean | null>(null);
 	private stopped = false;
 
 	constructor(
@@ -37,7 +39,8 @@ export class Exporter {
 	/** Asks the API which formats it can produce now. A failed answer leaves the rows as they are. */
 	async probe(): Promise<void> {
 		const { formats } = await backend.exportFormats().catch(() => ({ formats: [] }));
-		for (const { format, available } of formats) {
+		for (const { format, available, notes } of formats) {
+			if (format === 'pptx' && notes) this.pictures = notes === 'raw scenes as pictures';
 			const row = this.rows[format];
 			if (!available && row?.state === 'idle') row.state = 'soon';
 			if (available && row?.state === 'soon') row.state = 'idle';

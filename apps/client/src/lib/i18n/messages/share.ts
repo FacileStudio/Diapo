@@ -73,11 +73,18 @@ export const share = {
 	],
 	'export.title': ['Export', 'Exporter', 'Exportar', 'Exportieren'],
 	'export.pptx': ['PowerPoint', 'PowerPoint', 'PowerPoint', 'PowerPoint'],
-	'export.pptx.hint': [
-		'An editable .pptx file. Animated HTML slides are exported as a placeholder for now.',
-		'Un fichier .pptx modifiable. Les diapositives HTML animées sont exportées comme un simple repère pour l’instant.',
-		'Un archivo .pptx editable. Por ahora, las diapositivas HTML animadas se exportan como un marcador.',
-		'Eine bearbeitbare .pptx-Datei. Animierte HTML-Folien werden vorerst als Platzhalter exportiert.'
+	'export.pptx.hint': ['An editable .pptx file.', 'Un fichier .pptx modifiable.', 'Un archivo .pptx editable.', 'Eine bearbeitbare .pptx-Datei.'],
+	'export.pptx.hint.pictures': [
+		'An editable .pptx file. Animated HTML slides become a picture of their last frame.',
+		'Un fichier .pptx modifiable. Les diapositives HTML animées deviennent une image de leur dernier état.',
+		'Un archivo .pptx editable. Las diapositivas HTML animadas se convierten en una imagen de su último estado.',
+		'Eine bearbeitbare .pptx-Datei. Animierte HTML-Folien werden zu einem Bild ihres letzten Zustands.'
+	],
+	'export.pptx.hint.placeholders': [
+		'An editable .pptx file. Rendering is unavailable right now, so animated HTML slides become a placeholder.',
+		'Un fichier .pptx modifiable. Le rendu est indisponible pour le moment : les diapositives HTML animées deviennent un simple repère.',
+		'Un archivo .pptx editable. El renderizado no está disponible ahora: las diapositivas HTML animadas se convierten en un marcador.',
+		'Eine bearbeitbare .pptx-Datei. Das Rendern ist gerade nicht verfügbar, animierte HTML-Folien werden zu einem Platzhalter.'
 	],
 	'export.html': ['HTML', 'HTML', 'HTML', 'HTML'],
 	'export.html.hint': [
