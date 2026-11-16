@@ -13,7 +13,7 @@
 		type WorksWithApp
 	} from '@facile/muse';
 	import { backend } from '$lib/backend';
-	import { bulleIcon } from '$lib/brand';
+	import { bulleIcon, shareIcon } from '$lib/brand';
 	import { CLI_RELEASED, REPO_HREF } from '$lib/downloads';
 	import { locale, t } from '$lib/i18n';
 	import BulleTile from './BulleTile.svelte';
@@ -29,7 +29,7 @@
 		['steps', icons.layers],
 		['notes', icons.eyeClosed],
 		['save', icons.check],
-		['layouts', icons.dashboard],
+		['share', shareIcon],
 		['images', icons.upload],
 		['exports', icons.download]
 	] as const;
