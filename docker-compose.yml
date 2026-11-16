@@ -67,6 +67,10 @@ services:
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       OIDC_SUCCESS_URL: ${OIDC_SUCCESS_URL:-}
       OIDC_CLI_AUDIENCE: ${OIDC_CLI_AUDIENCE:-}
+      MCP_RESOURCE: ${MCP_RESOURCE:-}
+      MCP_STATE_KEY: ${MCP_STATE_KEY:-}
+      BULLE_URL: ${BULLE_URL:-}
+      BULLE_CLIENT_ID: ${BULLE_CLIENT_ID:-bulle}
     healthcheck:
       test: ["CMD", "/api", "healthcheck"]
       interval: 30s
