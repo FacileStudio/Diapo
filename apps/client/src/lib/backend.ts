@@ -1,3 +1,5 @@
+import type { Asset, AssistantProfile, Deck, DeckSummary, SceneError, SessionUser } from './types';
+
 /** The suite error codes, from tronc's `statusByCode`. */
 export type ErrorCode =
 	| 'invalid_argument'
@@ -20,6 +22,7 @@ const CODES: Record<number, ErrorCode> = {
 	404: 'not_found',
 	405: 'method_not_allowed',
 	409: 'already_exists',
+	422: 'invalid_argument',
 	412: 'failed_precondition',
 	413: 'resource_exhausted',
 	429: 'rate_limited',
@@ -36,22 +39,31 @@ export class ApiError extends Error {
 	constructor(
 		readonly status: number,
 		readonly code: ErrorCode,
-		message: string
+		message: string,
+		readonly errors: SceneError[] = []
 	) {
 		super(message);
 		this.name = 'ApiError';
 	}
 }
 
-/** Reads the suite error envelope of a failed response into an `ApiError`. */
+type Envelope = { error?: { code?: string; message?: string; errors?: unknown }; errors?: unknown };
+
+function sceneErrors(body: Envelope): SceneError[] {
+	const found = body.errors ?? body.error?.errors;
+	if (!Array.isArray(found)) return [];
+	return found
+		.filter((row): row is SceneError => typeof row?.line === 'number' && typeof row?.message === 'string')
+		.map((row) => ({ line: row.line, message: row.message }));
+}
+
+/** Reads the suite error envelope of a failed response into an `ApiError`, with the scene errors of a 422. */
 export async function toApiError(response: Response): Promise<ApiError> {
 	const fallback = CODES[response.status] ?? 'internal';
 	try {
-		const body = (await response.json()) as {
-			error?: { code?: string; message?: string };
-		};
+		const body = (await response.json()) as Envelope;
 		const code = (body.error?.code as ErrorCode | undefined) ?? fallback;
-		return new ApiError(response.status, code, body.error?.message ?? response.statusText);
+		return new ApiError(response.status, code, body.error?.message ?? response.statusText, sceneErrors(body));
 	} catch {
 		return new ApiError(response.status, fallback, response.statusText || `HTTP ${response.status}`);
 	}
@@ -79,12 +91,46 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 	return (await response.json()) as T;
 }
 
-/** The signed-in person, as `GET /auth/session` names them. */
-export type SessionUser = { email: string; name?: string; avatar_url?: string };
+const send = (method: string, body?: unknown): RequestInit => ({
+	method,
+	body: body === undefined ? undefined : JSON.stringify(body)
+});
+
+const deck = (id: string, rest = '') => `/decks/${encodeURIComponent(id)}${rest}`;
+
+function upload(id: string, file: File): Promise<Asset> {
+	const form = new FormData();
+	form.append('file', file);
+	return request<Asset>(deck(id, '/assets'), { method: 'POST', body: form });
+}
+
+/** Which compiled document a frame shows: the whole deck, or one scene (from 0). A new `stamp` loads it again. */
+export type FrameQuery = { scene?: number; stamp?: string | number };
+
+function frameUrl(id: string, query: FrameQuery = {}): string {
+	const params = new URLSearchParams();
+	if (query.scene !== undefined) params.set('scene', String(query.scene));
+	if (query.stamp !== undefined) params.set('v', String(query.stamp));
+	const text = params.toString();
+	return `${API}${deck(id, '/frame')}${text ? `?${text}` : ''}`;
+}
 
 /** Every call the client makes, one method per route. */
 export const backend = {
-	session: () => request<{ user: SessionUser | null }>('/auth/session'),
+	session: () => request<{ user: SessionUser | null; bulle_url?: string }>('/auth/session'),
 	loginUrl: () => `${API}/auth/oidc`,
-	logout: () => request<unknown>('/auth/logout', { method: 'POST' })
+	logout: () => request<unknown>('/auth/logout', send('POST')),
+	decks: () => request<DeckSummary[]>('/decks'),
+	create: (title: string) => request<Deck>('/decks', send('POST', { title })),
+	deck: (id: string) => request<Deck>(deck(id)),
+	save: (id: string, source: string, rev: number) =>
+		request<{ rev: number }>(deck(id, '/source'), send('PUT', { source, rev })),
+	rename: (id: string, title: string) => request<Deck>(deck(id), send('PATCH', { title })),
+	trash: (id: string, trashed: boolean) => request<Deck>(deck(id), send('PATCH', { trashed })),
+	eventsUrl: (id: string) => `${API}${deck(id, '/events')}`,
+	frameUrl,
+	assets: (id: string) => request<{ assets: Asset[] }>(deck(id, '/assets')).then((found) => found.assets),
+	upload,
+	removeAsset: (id: string, name: string) => request<void>(deck(id, `/assets/${encodeURI(name)}`), send('DELETE')),
+	assistant: () => request<AssistantProfile>('/assistant')
 };
