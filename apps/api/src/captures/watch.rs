@@ -8,7 +8,7 @@ use super::{Captures, POLL};
 impl Captures {
     /// The worker's status of the job `id`, once it has written one.
     pub async fn status(&self, id: &str) -> Option<Status> {
-        let text = tokio::fs::read(self.layout(id).status()).await.ok()?;
+        let text = self.read(&self.layout(id).status(), super::safe::SMALL).await.ok()?;
         serde_json::from_slice(&text).ok()
     }
 
@@ -27,11 +27,23 @@ impl Captures {
                 _ => tokio::time::sleep(POLL).await,
             }
         }
-        tokio::fs::write(self.layout(id).cancel(), b"").await.ok();
+        self.cancel(id).await;
         Err(Error::unavailable("the capture service did not finish in time"))
     }
 
-    /// Removes the job directory `id`. The worker never does.
+    /// Asks the worker to stop the job `id`, when its directory is still a real one inside the
+    /// captures directory. The file is created new: an existing name, a link included, is left.
+    pub async fn cancel(&self, id: &str) {
+        let layout = self.layout(id);
+        if !super::safe::real_dir(self.dir(), &layout.dir) {
+            return;
+        }
+        let mut create = tokio::fs::OpenOptions::new();
+        create.write(true).create_new(true);
+        create.open(layout.cancel()).await.ok();
+    }
+
+    /// Removes the job directory `id`. The worker never does. A link is removed, not followed.
     pub async fn remove(&self, id: &str) {
         tokio::fs::remove_dir_all(self.layout(id).dir).await.ok();
     }
