@@ -1,6 +1,5 @@
 import { ApiError, backend } from '$lib/backend';
 import type { ExportFormat, ExportJob } from '$lib/types';
-import { ASK_AGAIN_AFTER, asked, known, learn, refused } from './export-memory';
 
 /** Where one format stands in the export dialog. `soon` means the API cannot produce it yet. */
 export type ExportState = 'idle' | 'working' | 'done' | 'failed' | 'soon';
@@ -17,10 +16,9 @@ export const EXPORT_FORMATS: readonly ExportFormat[] = ['pptx', 'html', 'pdf', '
 const unavailable = (error: unknown) => error instanceof ApiError && error.status === 503;
 
 /**
- * The exports of one deck. A format this browser has never seen work is asked when the dialog
- * opens: `503 unavailable` shows it as coming soon and is believed for `ASK_AGAIN_AFTER`, and an
- * answer with a job shows that job, so a format lights up by itself once the API can produce it. A job that is not
- * finished is polled every `interval` ms until it is `done` or `failed`.
+ * The exports of one deck. When the dialog opens, `GET /api/exports/formats` says which formats
+ * the API can produce now: the others show as coming soon. Nothing is started to find out. A job
+ * that is not finished is polled every `interval` ms until it is `done` or `failed`.
  */
 export class Exporter {
 	rows = $state<Record<ExportFormat, ExportRow>>({
@@ -36,26 +34,24 @@ export class Exporter {
 		private readonly interval = 1500
 	) {}
 
-	/** Asks the API about every format this browser has not seen work yet. */
+	/** Asks the API which formats it can produce now. A failed answer leaves the rows as they are. */
 	async probe(): Promise<void> {
-		const unsure = EXPORT_FORMATS.filter((format) => !known().includes(format) && this.rows[format].state === 'idle');
-		for (const format of unsure) this.rows[format].state = 'soon';
-		const due = unsure.filter((format) => Date.now() - (asked()[format] ?? 0) >= ASK_AGAIN_AFTER);
-		await Promise.all(due.map((format) => this.start(format)));
+		const { formats } = await backend.exportFormats().catch(() => ({ formats: [] }));
+		for (const { format, available } of formats) {
+			const row = this.rows[format];
+			if (!available && row?.state === 'idle') row.state = 'soon';
+			if (available && row?.state === 'soon') row.state = 'idle';
+		}
 	}
 
 	/** Starts the export of `format` and follows its job to the end. */
 	async start(format: ExportFormat): Promise<void> {
-		const before = this.rows[format].state;
-		if (before === 'working') return;
-		if (before !== 'soon') this.rows[format] = { state: 'working', job: null };
+		if (this.rows[format].state === 'working') return;
+		this.rows[format] = { state: 'working', job: null };
 		try {
-			const job = await backend.startExport(this.id, format);
-			learn(format);
-			await this.follow(format, job);
+			await this.follow(format, await backend.startExport(this.id, format));
 		} catch (error) {
-			if (unavailable(error)) refused(format);
-			this.rows[format] = { state: unavailable(error) ? 'soon' : before === 'soon' ? 'soon' : 'failed', job: null };
+			this.rows[format] = { state: unavailable(error) ? 'soon' : 'failed', job: null };
 		}
 	}
 

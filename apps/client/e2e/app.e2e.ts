@@ -146,11 +146,15 @@ test('a shared deck opens without a session, as a page and as an embed, until th
 	expect(own).toEqual([]);
 
 	await editor.getByTestId('share-revoke').click();
+	await editor.getByRole('button', { name: 'Désactiver le lien' }).last().click();
 	await waitData(editor, 'share-dialog', 'status', 'off');
 	await visitor.goto(url);
 	await visitor.getByTestId('link-gone').getByText('Ce lien n’est plus disponible').waitFor({ timeout: 10_000 });
 	await context.close();
 	await editor.keyboard.press('Escape');
+	const dialog = editor.getByTestId('share-dialog');
+	await dialog.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => editor.keyboard.press('Escape'));
+	await dialog.waitFor({ state: 'hidden', timeout: 5000 });
 });
 
 test('an HTML export downloads a file, and the formats the API cannot make yet say soon', async () => {

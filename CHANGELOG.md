@@ -78,6 +78,8 @@ All notable changes to Diapo. Versions follow SemVer.
 
 - The image moves from distroless to a pinned `debian:bookworm-slim` with a pinned
   `chrome-headless-shell` and `tini`. The API still never starts a browser.
+- `GET /api/exports/formats`: which formats an export would start for now. The export dialog
+  reads it instead of starting a job per format, and turning a share link off asks first.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
 - `apps/cli`: the `diapo` command line. `new`, `serve` (live reload, problems in the terminal

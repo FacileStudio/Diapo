@@ -46,6 +46,14 @@ export interface PublicDeck {
 /** What a deck exports to. */
 export type ExportFormat = 'html' | 'pptx' | 'pdf' | 'mp4';
 
+/** One format of `GET /api/exports/formats`: whether an export of it would start now. */
+export interface ExportCapability {
+	format: ExportFormat;
+	available: boolean;
+	reason?: string;
+	notes?: string;
+}
+
 /** An export job, as `POST /api/decks/{id}/exports` and `GET /api/exports/{id}` answer it. */
 export interface ExportJob {
 	id: string;

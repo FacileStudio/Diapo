@@ -64,6 +64,13 @@ export const share = {
 		'Der aktuelle Link funktioniert sofort nicht mehr, überall, wo er verschickt oder eingebettet wurde.'
 	],
 	'share.revoke': ['Turn the link off', 'Désactiver le lien', 'Desactivar el enlace', 'Link deaktivieren'],
+	'share.revoke.title': ['Turn the link off?', 'Désactiver le lien ?', '¿Desactivar el enlace?', 'Link deaktivieren?'],
+	'share.revoke.hint': [
+		'Every copy of this link stops working, for good.',
+		'Toutes les copies de ce lien cessent de fonctionner, définitivement.',
+		'Todas las copias de este enlace dejan de funcionar, para siempre.',
+		'Alle Kopien dieses Links funktionieren dann dauerhaft nicht mehr.'
+	],
 	'export.title': ['Export', 'Exporter', 'Exportar', 'Exportieren'],
 	'export.pptx': ['PowerPoint', 'PowerPoint', 'PowerPoint', 'PowerPoint'],
 	'export.pptx.hint': [
