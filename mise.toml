@@ -19,7 +19,7 @@ run = "sh ./scripts/postgres-down.sh"
 
 [tasks.dev]
 description = "Run the API against the local database"
-env = { DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5673/postgres?sslmode=disable", PORT = "4000" }
+env = { DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5673/postgres?sslmode=disable", PORT = "4000", DATA_DIR = ".local/data" }
 run = "cargo run -p api"
 
 [tasks.build]
