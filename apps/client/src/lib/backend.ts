@@ -1,4 +1,16 @@
-import type { Asset, AssistantProfile, Deck, DeckSummary, PendingAction, SceneError, SessionUser } from './types';
+import type {
+	Asset,
+	AssistantProfile,
+	Deck,
+	DeckSummary,
+	ExportFormat,
+	ExportJob,
+	PendingAction,
+	PublicDeck,
+	SceneError,
+	SessionUser,
+	ShareLink
+} from './types';
 
 /** The suite error codes, from tronc's `statusByCode`. */
 export type ErrorCode =
@@ -136,6 +148,14 @@ export const backend = {
 	assets: (id: string) => request<{ assets: Asset[] }>(deck(id, '/assets')).then((found) => found.assets),
 	upload,
 	removeAsset: (id: string, name: string) => request<void>(deck(id, `/assets/${encodeURI(name)}`), send('DELETE')),
+	share: (id: string) => request<ShareLink>(deck(id, '/share')),
+	createShare: (id: string, rotate = false) =>
+		request<ShareLink>(deck(id, `/share${rotate ? '?rotate=true' : ''}`), send('POST')),
+	revokeShare: (id: string) => request<void>(deck(id, '/share'), send('DELETE')),
+	publicDeck: (token: string) =>
+		request<PublicDeck>(`/public/decks/${encodeURIComponent(token)}`, { credentials: 'omit' }),
+	startExport: (id: string, format: ExportFormat) => request<ExportJob>(deck(id, '/exports'), send('POST', { format })),
+	exportJob: (id: string) => request<ExportJob>(`/exports/${encodeURIComponent(id)}`),
 	assistant: () => request<AssistantProfile>('/assistant'),
 	actions: () => request<{ actions: PendingAction[]; truncated?: boolean }>('/mcp/pending'),
 	confirmAction: (id: string) => request<unknown>(action(id, 'confirm'), send('POST')),

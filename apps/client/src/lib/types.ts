@@ -25,6 +25,38 @@ export interface Asset {
 	url: string;
 }
 
+/** The share link of a deck, as `GET` and `POST /api/decks/{id}/share` answer it. `url` comes once, on creation. */
+export interface ShareLink {
+	shared: boolean;
+	created_at: string | null;
+	url?: string;
+}
+
+/** A shared deck as `GET /api/public/decks/{token}` answers it. `frame` is the route of its sandboxed document. */
+export interface PublicDeck {
+	title: string;
+	scenes: number;
+	steps: number;
+	width: number;
+	height: number;
+	rev: number;
+	frame: string;
+}
+
+/** What a deck exports to. */
+export type ExportFormat = 'html' | 'pptx' | 'pdf' | 'mp4';
+
+/** An export job, as `POST /api/decks/{id}/exports` and `GET /api/exports/{id}` answer it. */
+export interface ExportJob {
+	id: string;
+	format: ExportFormat;
+	status: 'queued' | 'running' | 'done' | 'failed';
+	error: string;
+	file_name: string;
+	size: number;
+	download_url: string | null;
+}
+
 /** The person's Bulle assistant, as `GET /api/assistant` answers it. */
 export interface AssistantProfile {
 	name: string;
