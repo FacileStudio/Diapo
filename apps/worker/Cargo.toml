@@ -1,0 +1,21 @@
+[package]
+name = "worker"
+version = "0.0.0"
+description = "Diapo's isolated capture service: polls a directory for jobs and captures one at a time"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "worker"
+path = "src/main.rs"
+
+[dependencies]
+capture = { package = "diapo-capture", path = "../../crates/capture", features = ["chrome"] }
+serde_json = "1.0.154"
+
+[dev-dependencies]
+scene = { package = "facile-scene", path = "../../crates/scene" }
+tempfile = "3.27.0"
