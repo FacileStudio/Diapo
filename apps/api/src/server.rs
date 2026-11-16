@@ -81,6 +81,8 @@ pub fn state(config: &Config, pool: PgPool, kits: &Kits) -> AppState {
         embed_ancestors: config.embed_ancestors.clone().into(),
         client_dir: Arc::new(tronc::spa::dir_from_env()),
         exports: Arc::new(tokio::sync::Semaphore::new(1)),
+        videos: Arc::new(tokio::sync::Semaphore::new(1)),
+        formats: Default::default(),
         captures: Captures::under(&config.data_dir),
         thumbs: Default::default(),
         clap: clap(config, kits),

@@ -42,12 +42,16 @@ pub struct AppState {
     pub embed_ancestors: Arc<[String]>,
     /// The built client, whose `index.html` is the shell of the public pages.
     pub client_dir: Arc<PathBuf>,
-    /// The one export slot: a single job builds at a time.
+    /// The export slot of every format but MP4: one such job builds at a time.
     pub exports: Arc<Semaphore>,
+    /// The MP4 slot: one video waits on Clap at a time, beside the other lane.
+    pub videos: Arc<Semaphore>,
     /// The directory shared with the capture worker.
     pub captures: Captures,
     /// The thumbnails being made.
     pub thumbs: Thumbs,
+    /// The last answer of `GET /exports/formats`.
+    pub formats: crate::modules::exports::formats::Cache,
     /// Clap, for MP4 exports; `None` when `CLAP_URL` is empty or Registre is not configured.
     pub clap: Option<Clap>,
 }

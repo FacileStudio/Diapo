@@ -113,6 +113,7 @@ async fn the_formats_route_says_what_would_start_without_starting_anything() {
     assert_eq!(before, expected);
     assert_eq!(app.call("GET", "/api/exports/formats", None, None).await.status, 401);
     let _worker = worker::start(&app);
+    app.state.formats.forget();
     let after = app.call("GET", "/api/exports/formats", Some(&ada), None).await.json();
     assert_eq!(
         (after["formats"][2]["available"].clone(), after["formats"][1]["notes"].clone()),

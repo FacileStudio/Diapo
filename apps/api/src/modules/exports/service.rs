@@ -63,26 +63,18 @@ fn located(job: Job) -> Job {
     Job { download_url, ..job }
 }
 
-async fn available(state: &AppState, format: Format) -> Result<()> {
-    match format {
-        Format::Html | Format::Pptx => Ok(()),
-        Format::Pdf => state.captures.require().await,
-        Format::Mp4 if state.clap.is_some() => Ok(()),
-        Format::Mp4 => Err(Error::unavailable("exporting to mp4 is not available on this server")),
-    }
-}
-
 /// `POST /decks/{id}/exports`: queues the export of the deck as it is now and starts it. A job
 /// that ends within [`QUICK`] is answered finished; a slower one is answered as it is, to be
 /// read again with `GET /exports/{id}`. A format the server cannot produce right now is
-/// `503 unavailable` and leaves no job.
+/// `503 unavailable` and leaves no job. One person has one export under way at a time.
 pub async fn create(state: &AppState, user_id: i64, deck: Uuid, format: Format, steps: bool) -> Result<Job> {
     access::check(state, user_id, deck, Access::Viewer).await?;
-    available(state, format).await?;
+    super::formats::available(state, format).await?;
     let row = fetch(state, deck).await?;
-    let id: Uuid = sqlx::query_scalar(
+    let id: Option<Uuid> = sqlx::query_scalar(
         "INSERT INTO exports (deck_id, rev, format, steps, file_name, created_by) \
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+         VALUES ($1, $2, $3, $4, $5, $6) \
+         ON CONFLICT (created_by) WHERE status IN ('queued', 'running') DO NOTHING RETURNING id",
     )
     .bind(deck)
     .bind(row.rev)
@@ -90,12 +82,36 @@ pub async fn create(state: &AppState, user_id: i64, deck: Uuid, format: Format, 
     .bind(steps && format == Format::Pdf)
     .bind(file_name(&row.title, format))
     .bind(user_id)
-    .fetch_one(&state.pool)
+    .fetch_optional(&state.pool)
     .await
     .map_err(db)?;
+    let Some(id) = id else { return live(state, user_id, deck, format).await };
     let worker = state.clone();
-    tokio::spawn(async move { work::run(&worker, id, row).await });
+    tokio::spawn(async move { work::run(&worker, id, row, format).await });
     settled(state, id, QUICK).await
+}
+
+/// The export `user_id` already has under way. One person runs one export at a time: asking
+/// again for the same deck and format answers that job, asking for another is `429`.
+async fn live(state: &AppState, user_id: i64, deck: Uuid, format: Format) -> Result<Job> {
+    let job = sqlx::query_as::<_, Job>(concat!(
+        "SELECT ",
+        columns!(),
+        " FROM exports WHERE created_by = $1 AND status IN ('queued', 'running')"
+    ))
+    .bind(user_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(db)?
+    .map(located)
+    .ok_or_else(|| Error::conflict("an export just finished; ask again"))?;
+    match job.deck_id == deck && job.format == format.name() {
+        true => Ok(job),
+        false => Err(Error::rate_limited(format!(
+            "you have a {} export under way; wait until it is done, then ask again",
+            job.format
+        ))),
+    }
 }
 
 /// The job once it is over, or as it is after `limit`.

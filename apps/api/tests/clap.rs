@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use api::modules::exports::clap::Clap;
 use api::modules::exports::tokens::Tokens;
-use common::clap_mock::{VIDEO, mock};
+use common::clap_mock::{Mode, VIDEO, mock};
 use common::fixture::{self, NOTED};
 use common::upload;
 use serde_json::{Value, json};
@@ -47,7 +47,7 @@ async fn exported(app: &common::App, who: &common::Person, deck: &str) -> Value 
 
 #[tokio::test]
 async fn an_mp4_export_posts_the_bundle_to_clap_as_the_person_and_brings_the_video_back() {
-    let (url, seen) = mock(false).await;
+    let (url, seen) = mock(Mode::Done).await;
     let Some(app) = started("diapo_clap", Some(&url)).await else { return };
     let ada = app.person("ada").await;
     let id = fixture::id(&fixture::deck(&app, &ada, None, NOTED).await);
@@ -71,7 +71,7 @@ async fn an_mp4_export_posts_the_bundle_to_clap_as_the_person_and_brings_the_vid
 
 #[tokio::test]
 async fn a_render_clap_fails_fails_the_export_and_no_clap_is_a_503() {
-    let (url, _) = mock(true).await;
+    let (url, _) = mock(Mode::Fails).await;
     let Some(app) = started("diapo_clap_fail", Some(&url)).await else { return };
     let ada = app.person("ada").await;
     let id = fixture::id(&fixture::deck(&app, &ada, None, NOTED).await);
