@@ -1,0 +1,33 @@
+[package]
+name = "diapo-capture"
+version = "0.1.0"
+description = "Diapo's capture: the job files the API and the worker share, and stills and PDFs from a compiled deck in chrome-headless-shell"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "capture"
+path = "src/lib.rs"
+
+[features]
+default = []
+chrome = ["dep:base64", "dep:command-fds", "dep:lopdf", "dep:tempfile", "dep:url"]
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+time = { version = "0.3.55", features = ["formatting", "parsing"] }
+base64 = { version = "0.23.1", optional = true }
+command-fds = { version = "0.3.3", optional = true }
+lopdf = { version = "0.38.0", optional = true, default-features = false }
+tempfile = { version = "3.27.0", optional = true }
+url = { version = "2.5.8", optional = true }
+
+[dev-dependencies]
+scene = { package = "facile-scene", path = "../scene" }
+tempfile = "3.27.0"
+lopdf = { version = "0.38.0", default-features = false }
