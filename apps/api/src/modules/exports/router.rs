@@ -10,6 +10,7 @@ use tronc::json::Json;
 
 use super::Format;
 use super::download::download;
+use super::formats::{Formats, formats};
 use super::service::{self, Job};
 use crate::extract::id;
 use crate::state::AppState;
@@ -35,9 +36,17 @@ async fn show(State(state): State<AppState>, who: Identity, Path(raw): Path<Stri
     service::read(&state, who.user_id, id(&raw)?).await.map(Json)
 }
 
-/// `POST /decks/{id}/exports` and `GET /exports/{id}`, behind `require_auth`.
+async fn capabilities(State(state): State<AppState>) -> Json<Formats> {
+    Json(formats(&state).await)
+}
+
+/// `POST /decks/{id}/exports`, `GET /exports/formats` and `GET /exports/{id}`, behind
+/// `require_auth`.
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/decks/{id}/exports", post(create)).route("/exports/{id}", get(show))
+    Router::new()
+        .route("/decks/{id}/exports", post(create))
+        .route("/exports/formats", get(capabilities))
+        .route("/exports/{id}", get(show))
 }
 
 /// `GET /exports/{id}/file`: a session or a signed link, so it sits behind the optional layer.

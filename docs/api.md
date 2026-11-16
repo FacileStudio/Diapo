@@ -42,6 +42,7 @@ A deck with no space is personal: only its owner reaches it. An instance admin g
 | `GET /decks/{id}/share` | editor | `{shared, created_at}` |
 | `DELETE /decks/{id}/share` | editor | Revokes the link, `204`; `404` when the deck is not shared |
 | `POST /decks/{id}/exports` | viewer | Body `{format, steps?}`: `html`, `pptx`, `pdf` or `mp4`. `201` with the job. See "Exports" |
+| `GET /exports/formats` | session | Which formats would start now. See "Exports" |
 | `GET /exports/{id}` | viewer of its deck | The job |
 | `GET /exports/{id}/file` | viewer of its deck, or a signed link | The file, as a download |
 | `GET /spaces` | session | The caller's spaces and roles, mirrored from Registre |
@@ -283,6 +284,24 @@ slower one as it is. Read it again with `GET /exports/{id}` until `status` is `d
   opens an export. `diapo_export` answers such a link for the agent to hand to the person.
 - Files live in `DATA_DIR/exports/<job id>`. Jobs and files are removed after one day. A job
   left `queued` or `running` by a restart is marked `failed` at boot.
+
+`GET /exports/formats` says what an export would do now, and starts no job. A client reads it
+when it opens its export dialog instead of trying each format:
+
+```json
+{"formats": [
+  {"format": "html", "available": true},
+  {"format": "pptx", "available": true, "notes": "raw scenes as pictures"},
+  {"format": "pdf", "available": false, "reason": "the capture service is not running"},
+  {"format": "mp4", "available": true}
+]}
+```
+
+`pdf` is available while the capture worker's heartbeat is fresh. `mp4` is available while
+`CLAP_URL` is set, Registre is configured and Clap's `/health` answers within two seconds.
+`pptx` is always available; its `notes` are `raw scenes as pictures` or `raw scenes as
+placeholders`, depending on the worker. The answer is advice: `POST` still checks, and still
+answers `503`.
 
 ### What a PPTX holds
 

@@ -52,6 +52,8 @@ async fn an_mp4_export_posts_the_bundle_to_clap_as_the_person_and_brings_the_vid
     let ada = app.person("ada").await;
     let id = fixture::id(&fixture::deck(&app, &ada, None, NOTED).await);
     upload::png(&app, &ada, &id, "assets/dot.png").await;
+    let formats = app.call("GET", "/api/exports/formats", Some(&ada), None).await.json();
+    assert_eq!(formats["formats"][3], json!({"format": "mp4", "available": true}));
     let job = exported(&app, &ada, &id).await;
     assert_eq!((job["status"].clone(), job["file_name"].clone()), (json!("done"), json!("Launch-plan-b.mp4")), "{job}");
     assert_eq!(
