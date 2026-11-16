@@ -1,0 +1,21 @@
+{
+  "name": "Diapo",
+  "short_name": "Diapo",
+  "description": "Type your ideas like a note: each block becomes a slide you present from your browser. Free to start.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#fafafa",
+  "background_color": "#fafafa",
+  "display": "standalone",
+  "start_url": "/"
+}
