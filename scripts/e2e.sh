@@ -26,5 +26,5 @@ cargo build --quiet --locked -p api
   [ -d node_modules ] || bun install --frozen-lockfile >/dev/null
   bun run build
   SCENE_E2E_DIR="$out" bun test --timeout 60000 ./e2e/scene.e2e.ts
-  bun test --timeout 120000 ./e2e/app.e2e.ts
+  bun test --timeout 120000 ./e2e/app.e2e.ts ./e2e/landing.e2e.ts
 )
