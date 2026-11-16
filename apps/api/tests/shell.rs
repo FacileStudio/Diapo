@@ -1,78 +1,54 @@
-//! The wave A shell against a real Postgres: probes, `/version`, sessions, the API reference.
+//! The shell against a real Postgres: probes, `/version`, sessions, the API reference.
 
-use api::auth::Kits;
-use api::env::Config;
-use api::state::AppState;
-use axum::Router;
-use axum::body::Body;
-use http::{Request, StatusCode, header};
-use http_body_util::BodyExt;
-use sqlx::PgPool;
-use tower::ServiceExt;
-use tronc::env::Vars;
+mod common;
 
-struct App {
-    router: Router,
-    kits: Kits,
-    pool: PgPool,
-}
-
-async fn app(prefix: &str) -> Option<App> {
-    let Some(pool) = tronc::testdb::pool(prefix, &api::MIGRATOR).await else {
-        eprintln!("{}", tronc::testdb::skip_reason("mise run db-up"));
-        return None;
-    };
-    let config = Config::from_vars(&Vars::from_pairs(vec![("DATABASE_URL", "postgres://unused/x")])).unwrap();
-    let kits = Kits::new(&config, &pool).await.unwrap();
-    let router = api::router::build_router(AppState { pool: pool.clone() }, &kits).unwrap();
-    Some(App { router, kits, pool })
-}
-
-async fn call(app: &App, method: &str, path: &str, token: Option<&str>) -> (StatusCode, serde_json::Value) {
-    let mut request = Request::builder().method(method).uri(path).header(header::HOST, "diapo.test");
-    if let Some(token) = token {
-        request = request.header(header::AUTHORIZATION, format!("Bearer {token}"));
-    }
-    let response = app.router.clone().oneshot(request.body(Body::empty()).unwrap()).await.unwrap();
-    let status = response.status();
-    let bytes = response.into_body().collect().await.unwrap().to_bytes();
-    (status, serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
-}
+use http::StatusCode;
+use serde_json::Value;
 
 #[tokio::test]
 async fn probes_and_version_answer() {
-    let Some(app) = app("diapo_shell_probes").await else { return };
-    assert_eq!(call(&app, "GET", "/health", None).await.1["status"], "ok");
-    assert_eq!(call(&app, "GET", "/api/ready", None).await.1["status"], "ready");
-    assert_eq!(call(&app, "GET", "/version", None).await.1["version"], api::version::VERSION);
-    assert_eq!(call(&app, "GET", "/api/nope", None).await.0, StatusCode::NOT_FOUND);
+    let Some(pool) = common::pool("diapo_shell_probes").await else { return };
+    let app = common::app(pool).await;
+    assert_eq!(app.call("GET", "/health", None, None).await.json()["status"], "ok");
+    assert_eq!(app.call("GET", "/api/ready", None, None).await.json()["status"], "ready");
+    assert_eq!(app.call("GET", "/version", None, None).await.json()["version"], api::version::VERSION);
+    assert_eq!(app.call("GET", "/api/nope", None, None).await.status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn a_session_names_its_person_and_an_anonymous_one_names_nobody() {
-    let Some(app) = app("diapo_shell_session").await else { return };
-    assert_eq!(call(&app, "GET", "/api/auth/session", None).await.1["user"], serde_json::Value::Null);
-    assert_eq!(call(&app, "GET", "/api/auth/me", None).await.0, StatusCode::UNAUTHORIZED);
-    let user_id: i64 = sqlx::query_scalar("INSERT INTO porte_users (email, name) VALUES ($1, 'Ada') RETURNING id")
-        .bind("ada@example.test")
-        .fetch_one(&app.pool)
-        .await
-        .unwrap();
-    let (token, _) = app.kits.sessions.issue(user_id, "test").await.unwrap();
-    let (status, body) = call(&app, "GET", "/api/auth/session", Some(&token)).await;
-    assert_eq!((status, body["user"]["email"].as_str()), (StatusCode::OK, Some("ada@example.test")));
-    assert_eq!(call(&app, "GET", "/api/auth/me", Some(&token)).await.1["name"], "Ada");
+    let Some(pool) = common::pool("diapo_shell_session").await else { return };
+    let app = common::app(pool).await;
+    let anonymous = app.call("GET", "/api/auth/session", None, None).await.json();
+    assert_eq!(
+        (anonymous["user"].clone(), anonymous["bulle_url"].as_str()),
+        (Value::Null, Some("https://bulle.facile.studio"))
+    );
+    assert_eq!(app.call("GET", "/api/auth/me", None, None).await.status, StatusCode::UNAUTHORIZED);
+    let ada = app.person("Ada").await;
+    let session = app.call("GET", "/api/auth/session", Some(&ada), None).await;
+    assert_eq!(session.status, StatusCode::OK);
+    assert!(session.json()["user"]["email"].as_str().unwrap().starts_with("Ada-"));
+    assert_eq!(app.call("GET", "/api/auth/me", Some(&ada), None).await.json()["name"], "Ada");
+    let assistant = app.call("GET", "/api/assistant", Some(&ada), None).await;
+    assert_eq!(assistant.json()["name"], "Bulle");
+    assert_eq!(app.call("GET", "/api/assistant", None, None).await.status, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
 async fn every_mounted_route_is_in_the_api_reference() {
-    let Some(app) = app("diapo_shell_apiref").await else { return };
-    let missing = tronc::apiref::undocumented(&app.router, &api::apiref::document(), &api::apiref::config(), &[]);
+    let Some(served) = common::mcp::served("diapo_shell_apiref").await else { return };
+    let router = &served.app.router;
+    let beside = ["/mcp", "/.well-known"];
+    let missing = tronc::apiref::undocumented(router, &api::apiref::document(), &api::apiref::config(), &beside);
     assert!(missing.is_empty(), "routes missing from the API document: {missing:?}");
-    assert_eq!(call(&app, "GET", "/docs/openapi.json", None).await.1["info"]["title"], "Diapo API");
+    let document = served.app.call("GET", "/docs/openapi.json", None, None).await.json();
+    assert_eq!(document["info"]["title"], "Diapo API");
+    assert!(document["paths"]["/decks/{id}/source"]["put"].is_object(), "{document}");
 }
 
 #[test]
-fn the_first_migration_is_portes_schema_verbatim() {
+fn the_migrations_are_portes_schema_and_troncs_pending_table_verbatim() {
     assert_eq!(include_str!("../migrations/0001_porte.sql"), porte::pg::SCHEMA);
+    assert_eq!(include_str!("../migrations/0003_mcp_actions.sql"), tronc::mcp::PENDING_SCHEMA);
 }
