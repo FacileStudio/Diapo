@@ -19,6 +19,7 @@
 	import { logoIcon } from '$lib/brand';
 	import { rememberReturn, takeReturn } from '$lib/return';
 	import { session } from '$lib/session.svelte';
+	import Landing from '$lib/components/landing/Landing.svelte';
 	import { restoreTheme, saveTheme } from '$lib/theme';
 
 	let { children } = $props();
@@ -28,6 +29,7 @@
 	const path = $derived(page.url.pathname);
 
 	const bare = $derived(/^\/decks\/[^/]+\/(present|presenter)$/.test(path));
+	const open = $derived(path === '/downloads');
 	const focused = $derived(path.startsWith('/decks/'));
 	const onSettings = $derived(path.startsWith('/settings'));
 
@@ -40,7 +42,7 @@
 	});
 
 	$effect(() => {
-		if (!session.ready) return;
+		if (!session.ready || open) return;
 		if (!session.user) return rememberReturn(page.url);
 		const next = takeReturn();
 		if (next && next !== `${page.url.pathname}${page.url.search}`) void goto(next, { replaceState: true });
@@ -57,8 +59,6 @@
 	});
 	const userMenu = $derived<UserMenuOptions>({
 		settingsHref: '/settings',
-		locale: i18n.locale,
-		onLocaleChange: rememberLocale,
 		onThemeChange: saveTheme,
 		onSignOut: async () => {
 			await session.logout();
@@ -67,8 +67,12 @@
 	});
 </script>
 
-{#if !session.ready}
+{#if open}
+	{@render children()}
+{:else if !session.ready}
 	<div class="flex h-dvh w-full items-center justify-center bg-fc-page"><Spinner /></div>
+{:else if !session.user && path === '/'}
+	<Landing />
 {:else if !session.user}
 	<AuthScreen appName="Diapo" href={backend.loginUrl()} onLocaleChange={rememberLocale}>
 		{#snippet logo()}<Icon icon={logoIcon} size={40} />{/snippet}
