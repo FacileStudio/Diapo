@@ -1,0 +1,2 @@
+line 3: the frontmatter opened here is never closed by `---`
+line 5: a frontmatter line must be `key: value`

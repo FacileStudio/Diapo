@@ -1,0 +1,10 @@
+line 3: `theme` must be facile
+line 4: `size` must be WIDTHxHEIGHT in pixels, each from 16 to 16384
+line 5: unknown key `colour`
+line 6: duplicate key `title`
+line 7: `step_duration` must be a number of seconds above 0
+line 13: `layout` must be one of default, cover, center, split, raw
+line 14: `steps` must be a whole number from 0 to 999
+line 15: `duration` must be a number of seconds above 0
+line 16: `theme` belongs to the headmatter, not to a scene
+line 17: `class` must be class names made of letters, digits, - and _

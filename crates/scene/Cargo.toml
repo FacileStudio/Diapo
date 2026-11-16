@@ -1,0 +1,17 @@
+[package]
+name = "facile-scene"
+version = "0.1.0"
+description = "The scene format shared by Diapo and Clap: parse, validate, compile to HTML"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "scene"
+path = "src/lib.rs"
+
+[dependencies]
+pulldown-cmark = { version = "0.13.6", default-features = false, features = ["html"] }
+thiserror = "2.0.21"

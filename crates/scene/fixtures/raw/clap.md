@@ -1,0 +1,33 @@
+---
+title: Launch
+size: 1280x720
+layout: raw
+duration: 6
+---
+
+<style>
+  .clip { position: absolute; inset: 0; display: grid; place-items: center; }
+  #sub { position: absolute; left: 0; right: 0; bottom: 120px; text-align: center; }
+</style>
+<div class="clip" data-start="0" data-duration="6" data-track-index="1">
+  <h1 id="t">Launch day</h1>
+</div>
+<p id="sub" data-start="2" data-duration="3" data-track-index="2">Today, everywhere.</p>
+<script>
+  scene.timeline((tl) => {
+    tl.from("#t", { opacity: 0, y: 40, duration: 1, ease: "linear" });
+    tl.to("#t", { scale: 2, duration: 2, ease: "power2.inOut" }, 3);
+  });
+</script>
+
+<!-- Voice-over: it is launch day. -->
+
+---
+layout: raw
+steps: 1
+---
+
+<div class="clip"><h2 id="a">One</h2><h2 id="b" data-step="1">Two</h2></div>
+<script>
+  scene.timeline((tl) => tl.fromTo("#a", { x: -100 }, { x: 100, duration: 4, ease: "none" }, 0));
+</script>

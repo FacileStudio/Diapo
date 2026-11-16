@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = ["crates/scene", "apps/api"]
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-only"
+rust-version = "1.98"
+repository = "https://github.com/FacileStudio/Diapo"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2

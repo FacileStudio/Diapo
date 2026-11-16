@@ -1,0 +1,4 @@
+line 4: step 2 is past `steps: 1`
+line 7: a step marker must be `{step=k}` with k from 1 up
+line 11: a step marker must sit in a paragraph, heading, list item or quote; elsewhere use `data-step`
+line 13: a step marker must be `{step=k}` with k from 1 up

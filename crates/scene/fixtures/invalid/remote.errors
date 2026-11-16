@@ -1,0 +1,10 @@
+line 3: remote URL `https://example.com/chart.png`: a scene loads only files of its project
+line 7: remote URL `//cdn.example.com/a.png`: a scene loads only files of its project
+line 9: remote URL `https://fonts.example.com/css`: a scene loads only files of its project
+line 11: remote URL `http://example.com/bg.png`: a scene loads only files of its project
+line 13: asset path `../secrets.png` must be relative and stay inside the project folder
+line 13: asset path `/etc/passwd` must be relative and stay inside the project folder
+line 21: `data-start` must be a number of seconds, zero or more
+line 21: remote URL `https://example.com/p.jpg`: a scene loads only files of its project
+line 22: remote URL `https://example.com/x.js`: a scene loads only files of its project
+line 23: remote URL `https://example.com/x.css`: a scene loads only files of its project
