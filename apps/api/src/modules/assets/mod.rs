@@ -5,7 +5,7 @@ pub mod files;
 pub mod intake;
 pub mod name;
 mod router;
-mod serve;
+pub mod serve;
 pub mod service;
 pub mod sniff;
 pub mod sweep;

@@ -5,6 +5,7 @@ use tronc::env::{Core, EnvError, Vars};
 use crate::modules::assets::sniff::{ASSET_MAX_BYTES, DECK_ASSETS_MAX_BYTES};
 use crate::modules::assistant::Bulle;
 use crate::modules::decks::source::SOURCE_MAX_BYTES;
+use crate::origin::{ancestors, public_url};
 
 /// The byte caps one deck is held to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +38,12 @@ pub struct Config {
     pub limits: Limits,
     /// `BULLE_URL` and `BULLE_CLIENT_ID`: where the person's assistant lives.
     pub bulle: Bulle,
+    /// `PUBLIC_URL`: the origin people reach the app at. Default: the origin of
+    /// `OIDC_SUCCESS_URL`, else `http://localhost:<PORT>`.
+    pub public_url: String,
+    /// `EMBED_ANCESTORS`: the origins that may frame `/embed/{token}`, separated by spaces or
+    /// commas. Default: `https://prisme.facile.studio`.
+    pub embed_ancestors: Vec<String>,
 }
 
 impl Config {
@@ -55,6 +62,7 @@ impl Config {
             asset: bytes(vars, "ASSET_MAX_BYTES", ASSET_MAX_BYTES)?,
             deck_assets: bytes(vars, "DECK_ASSETS_MAX_BYTES", DECK_ASSETS_MAX_BYTES)?,
         };
+        let public_url = public_url(vars, &core, &porte)?;
         let config = Config {
             porte,
             token_key: text("PORTE_TOKEN_KEY"),
@@ -63,6 +71,8 @@ impl Config {
             mcp_state_key: text("MCP_STATE_KEY"),
             limits,
             bulle: Bulle::from_vars(vars)?,
+            public_url,
+            embed_ancestors: ancestors(vars)?,
             core,
         };
         config.check()?;
@@ -126,6 +136,16 @@ mod tests {
         assert_eq!(config.bulle.url, "https://bulle.facile.studio");
         let config = Config::from_vars(&vars(&[("SOURCE_MAX_BYTES", "4096"), ("ASSET_MAX_BYTES", "1024")])).unwrap();
         assert_eq!((config.limits.source, config.limits.asset), (4096, 1024));
+        assert_eq!(config.public_url, format!("http://localhost:{}", config.core.port));
+        assert_eq!(config.embed_ancestors, [crate::origin::DEFAULT_ANCESTOR]);
+        let shared =
+            [("OIDC_SUCCESS_URL", "https://diapo.test/"), ("EMBED_ANCESTORS", "https://a.test, https://b.test/")];
+        let config = Config::from_vars(&vars(&shared)).unwrap();
+        assert_eq!((config.public_url.as_str(), config.embed_ancestors.len()), ("https://diapo.test", 2));
+        assert_eq!(config.embed_ancestors[1], "https://b.test");
+        let named = Config::from_vars(&vars(&[("PUBLIC_URL", "http://127.0.0.1:9/x")])).unwrap();
+        assert_eq!(named.public_url, "http://127.0.0.1:9");
+        assert!(Config::from_vars(&vars(&[("EMBED_ANCESTORS", "*")])).is_err());
         for bad in [("SOURCE_MAX_BYTES", "0"), ("ASSET_MAX_BYTES", "-1"), ("DECK_ASSETS_MAX_BYTES", "lots")] {
             assert!(Config::from_vars(&vars(&[bad])).is_err(), "{bad:?}");
         }

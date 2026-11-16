@@ -52,9 +52,23 @@ fn dress(response: &mut Response, mime: &str, framed: bool) {
     }
 }
 
-/// `GET /decks/{id}/assets/{name}`: the bytes, with range requests so a video seeks. A frame
-/// link is answered with `Access-Control-Allow-Origin: *`, which a font loaded from the frame's
-/// opaque origin needs; the link itself is the right to read.
+/// The bytes of the asset `name` of `deck`, with range requests so a video seeks. `framed`
+/// answers a reader with no session: `Access-Control-Allow-Origin: *`, which a font loaded from
+/// a frame's opaque origin needs. Whoever asks: callers check access first.
+pub async fn send(state: &AppState, deck: Uuid, name: &str, framed: bool, request: Request) -> Result<Response> {
+    let asset = service::find(state, deck, name).await?;
+    let file = ServeFile::new(files::path(&state.data_dir, &asset.sha256));
+    let answer = file.oneshot(request).await.map_err(|error| Error::internal("failed to read an asset", error))?;
+    if answer.status() == StatusCode::NOT_FOUND {
+        return Err(Error::internal("an asset file is missing", std::io::Error::other(asset.sha256)));
+    }
+    let mut response = answer.map(Body::new);
+    dress(&mut response, &asset.mime, framed);
+    Ok(response)
+}
+
+/// `GET /decks/{id}/assets/{name}`: the bytes, for a signed-in reader of the deck or a frame
+/// link; the link itself is the right to read.
 pub async fn serve(
     State(state): State<AppState>,
     who: Option<Identity>,
@@ -64,13 +78,5 @@ pub async fn serve(
 ) -> Result<Response> {
     let deck = id(&raw)?;
     let framed = allowed(&state, who, deck, query.frame.as_deref()).await?;
-    let asset = service::find(&state, deck, &name).await?;
-    let file = ServeFile::new(files::path(&state.data_dir, &asset.sha256));
-    let answer = file.oneshot(request).await.map_err(|error| Error::internal("failed to read an asset", error))?;
-    if answer.status() == StatusCode::NOT_FOUND {
-        return Err(Error::internal("an asset file is missing", std::io::Error::other(asset.sha256)));
-    }
-    let mut response = answer.map(Body::new);
-    dress(&mut response, &asset.mime, framed);
-    Ok(response)
+    send(&state, deck, &name, framed, request).await
 }

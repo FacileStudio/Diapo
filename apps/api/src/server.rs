@@ -67,12 +67,17 @@ pub fn state(config: &Config, pool: PgPool, kits: &Kits) -> AppState {
         confirmations: None,
         exchanger: kits.exchanger.clone(),
         bulle: config.bulle.clone(),
+        public_url: Arc::from(config.public_url.as_str()),
+        embed_ancestors: config.embed_ancestors.clone().into(),
+        client_dir: Arc::new(tronc::spa::dir_from_env()),
+        exports: Arc::new(tokio::sync::Semaphore::new(1)),
     }
 }
 
 fn spawn_loops(kits: &Kits, state: &AppState, token: &CancellationToken) {
     tokio::spawn(crate::modules::assets::sweep::run(state.clone(), token.clone()));
     tokio::spawn(crate::modules::decks::purge::run(state.clone(), token.clone()));
+    tokio::spawn(crate::modules::exports::purge::run(state.clone(), token.clone()));
     if let Some(syncer) = kits.syncer.clone() {
         let token = token.clone();
         tokio::spawn(async move { syncer.run(token).await });

@@ -17,8 +17,9 @@ be in the source exactly once: zero or several matches are refused, so add surro
 one place. It needs the rev diapo_get_deck answered.";
 const GUIDE: &str = "The scene format reference: frontmatter keys, layouts, step reveals, timelines, assets and \
 the errors the parser answers. Call it once before you write or edit a deck.";
-const EXPORT: &str = "Exports a deck to a file: html, pdf, pptx or mp4. Exports are not available yet: the \
-call answers an error and exports nothing.";
+const EXPORT: &str = "Exports a deck to a file and answers a download link that works for one hour without \
+signing in: html (one offline file) or pptx (editable PowerPoint). pdf and mp4 are not available yet and answer \
+an error. Each call builds a new file from the deck as it is now.";
 const DELETE: &str = "Moves a deck to the trash, where it stays 30 days before it is deleted for good. The \
 person confirms first and nothing changes until they do.";
 
