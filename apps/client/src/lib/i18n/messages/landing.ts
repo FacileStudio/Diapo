@@ -91,12 +91,17 @@ export const landing = {
 		'Si la presentación cambia en otro lugar, eliges qué versión conservar.',
 		'Ändert sich die Präsentation anderswo, wählen Sie, welche Version bleibt.'
 	],
-	'landing.feature.layouts.title': ['Five layouts', 'Cinq mises en page', 'Cinco diseños', 'Fünf Layouts'],
-	'landing.feature.layouts.text': [
-		'Cover, centered, two columns, free or default, picked with one word.',
-		'Couverture, centré, deux colonnes, libre ou par défaut, choisies d’un mot.',
-		'Portada, centrado, dos columnas, libre o por defecto, elegidos con una palabra.',
-		'Titelfolie, zentriert, zwei Spalten, frei oder Standard, mit einem Wort gewählt.'
+	'landing.feature.share.title': [
+		'A link to watch without an account',
+		'Un lien pour regarder sans compte',
+		'Un enlace para ver sin cuenta',
+		'Ein Link zum Ansehen ohne Konto'
+	],
+	'landing.feature.share.text': [
+		'Send the link and the presentation opens in a browser. Turn it off whenever you want.',
+		'Envoyez le lien, la présentation s’ouvre dans un navigateur. Désactivez-le quand vous voulez.',
+		'Envía el enlace y la presentación se abre en un navegador. Desactívalo cuando quieras.',
+		'Senden Sie den Link, die Präsentation öffnet im Browser. Deaktivieren Sie ihn jederzeit.'
 	],
 	'landing.feature.images.title': [
 		'Your pictures beside the text',
@@ -110,12 +115,17 @@ export const landing = {
 		'Suelta una imagen, copia su referencia y pégala en la diapositiva.',
 		'Bild ablegen, Verweis kopieren, in die Folie einfügen.'
 	],
-	'landing.feature.exports.title': ['Exports', 'Exports', 'Exportaciones', 'Exporte'],
+	'landing.feature.exports.title': [
+		'PowerPoint and HTML exports',
+		'Exports PowerPoint et HTML',
+		'Exportaciones a PowerPoint y HTML',
+		'Export nach PowerPoint und HTML'
+	],
 	'landing.feature.exports.text': [
-		'PDF, HTML and PowerPoint are coming soon.',
-		'PDF, HTML et PowerPoint arrivent bientôt.',
-		'PDF, HTML y PowerPoint llegan pronto.',
-		'PDF, HTML und PowerPoint kommen bald.'
+		'An editable .pptx, or one file that opens offline. PDF and video are coming soon.',
+		'Un .pptx modifiable, ou un seul fichier qui s’ouvre hors ligne. PDF et vidéo arrivent bientôt.',
+		'Un .pptx editable, o un solo archivo que se abre sin conexión. PDF y vídeo llegan pronto.',
+		'Eine bearbeitbare .pptx oder eine Datei, die offline öffnet. PDF und Video kommen bald.'
 	],
 	'landing.with.line': [
 		'Bulle is the assistant of the Facile suite.',
