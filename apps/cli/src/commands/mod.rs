@@ -13,22 +13,12 @@ pub mod pull;
 pub mod push;
 pub mod whoami;
 
-use std::collections::BTreeMap;
-
 use serde_json::Value;
 
 use crate::api::Client;
 use crate::config;
 use crate::failure::{Failure, Outcome};
-use crate::sync::{Hashes, Link, asset_name, safe_name};
-
-/// The assets a server holds for a deck.
-struct RemoteAssets {
-    /// Content hashes by name under `assets/`.
-    hashes: Hashes,
-    /// The server's own spelling of each name.
-    spelled: BTreeMap<String, String>,
-}
+use crate::sync::{Hashes, Link, safe_name};
 
 /// A client for the resolved server, or the reason there is no login to call it with.
 fn session(server: Option<&str>) -> Outcome<Client> {
@@ -51,19 +41,15 @@ fn linked_session(flag: Option<&str>, link: &Link) -> Outcome<Client> {
     session(Some(&link.server))
 }
 
-/// Lists the deck's assets, refusing a name that would leave the `assets/` folder.
-fn remote_assets(client: &Client, deck: &str) -> Outcome<RemoteAssets> {
-    let mut remote = RemoteAssets { hashes: Hashes::new(), spelled: BTreeMap::new() };
+/// Lists the deck's assets by name, refusing a name that would leave the deck folder.
+fn remote_assets(client: &Client, deck: &str) -> Outcome<Hashes> {
+    let mut remote = Hashes::new();
     for asset in client.assets(deck)? {
-        let name = asset_name(&asset.name).to_owned();
-        if !safe_name(&name) {
-            return Err(Failure::new(
-                "bad_asset_name",
-                format!("the server lists an asset with an unsafe name: {name}"),
-            ));
+        if !safe_name(&asset.name) {
+            let message = format!("the server lists an asset with an unsafe name: {}", asset.name);
+            return Err(Failure::new("bad_asset_name", message));
         }
-        remote.hashes.insert(name.clone(), asset.sha256);
-        remote.spelled.insert(name, asset.name);
+        remote.insert(asset.name, asset.sha256);
     }
     Ok(remote)
 }

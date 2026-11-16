@@ -4,7 +4,7 @@
 use std::fs;
 
 use diapo_cli::sync::plan::{self, SourcePull};
-use diapo_cli::sync::{Hashes, Link, asset_name, local_assets, safe_name, sha256};
+use diapo_cli::sync::{Hashes, Link, local_assets, safe_name, sha256};
 
 fn hashes(pairs: &[(&str, &str)]) -> Hashes {
     pairs.iter().map(|(name, hash)| ((*name).to_owned(), (*hash).to_owned())).collect()
@@ -58,9 +58,11 @@ fn the_link_file_round_trips_and_assets_are_hashed_without_hidden_files() {
     fs::create_dir_all(dir.path().join("assets/img")).unwrap();
     fs::write(dir.path().join("assets/img/a.png"), b"abc").unwrap();
     fs::write(dir.path().join("assets/.DS_Store"), b"x").unwrap();
-    let assets = local_assets(dir.path()).unwrap();
+    fs::write(dir.path().join("logo.png"), b"abc").unwrap();
+    fs::write(dir.path().join("untracked.png"), b"abc").unwrap();
+    let assets = local_assets(dir.path(), &hashes(&[("logo.png", "old"), ("gone.png", "old")])).unwrap();
     let abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-    assert_eq!(assets, hashes(&[("img/a.png", abc)]));
+    assert_eq!(assets, hashes(&[("assets/img/a.png", abc), ("logo.png", abc)]));
     assert_eq!(sha256(b"abc"), abc);
     let link =
         Link { deck: "d1".to_owned(), server: "https://diapo.example".to_owned(), rev: 3, assets, ..Link::default() };
@@ -69,11 +71,9 @@ fn the_link_file_round_trips_and_assets_are_hashed_without_hidden_files() {
 }
 
 #[test]
-fn asset_names_from_a_server_cannot_leave_the_assets_folder() {
-    assert_eq!(asset_name("assets/chart.svg"), "chart.svg");
-    assert_eq!(asset_name("chart.svg"), "chart.svg");
-    assert!(safe_name("img/chart.svg"));
-    for name in ["", "../x", "img/../../x", "/etc/passwd", "./x"] {
+fn asset_names_from_a_server_cannot_leave_the_folder_or_replace_its_own_files() {
+    assert!(safe_name("assets/img/chart.svg") && safe_name("logo.png"));
+    for name in ["", "../x", "assets/../../x", "/etc/passwd", "./x", "diapo.md", ".diapo.json", "assets/.env"] {
         assert!(!safe_name(name), "{name}");
     }
 }

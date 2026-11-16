@@ -60,6 +60,11 @@ impl From<ApiError> for Failure {
                 "malformed",
                 format!("the server sent an answer diapo cannot read ({detail}) — check the server address"),
             ),
+            ApiError::Invalid(errors) => {
+                let lines: Vec<String> =
+                    errors.iter().map(|error| format!("line {}: {}", error.line, error.message)).collect();
+                Failure::new("invalid", format!("the server refused the source: {}", lines.join("; ")))
+            }
             ApiError::Refused { status: 401, .. } => {
                 Failure::new("unauthorized", "the server refused this login — run `diapo login`")
             }
