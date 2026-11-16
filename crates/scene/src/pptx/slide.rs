@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use super::geometry::Frame;
 use super::geometry::Stage;
 use super::image::{Picture, picture};
 use super::layout::{Piece, Placed, place};
@@ -9,11 +10,14 @@ use super::model::{Block, Run};
 use super::palette::Palette;
 use super::text::Style;
 use super::xml::{HEAD, NS, TREE, rels};
-use super::{Files, read, shapes};
+use super::{Files, Stills, read, shapes};
 use crate::model::{Layout, Scene};
 
 /// What a `raw` scene shows until it can be rendered to a picture.
 pub const RAW_TEXT: &str = "This slide is animated HTML. It is shown as an image once rendering is available.";
+
+/// What the notes of a `raw` scene say when the slide shows a picture of it.
+pub const RAW_PICTURED: &str = "This slide is animated HTML. It is shown as a picture of its last frame.";
 
 const RAW_TITLE: &str = "Animated slide";
 
@@ -46,6 +50,7 @@ pub(crate) struct Deck<'a> {
     pub stage: Stage,
     pub palette: Palette,
     pub files: &'a dyn Files,
+    pub stills: &'a dyn Stills,
     pub media: Media,
 }
 
@@ -94,17 +99,46 @@ fn shape(
     }
 }
 
-fn note(scene: &Scene) -> Option<String> {
+fn note(scene: &Scene, said: &str) -> Option<String> {
     let written = scene.note.clone().filter(|note| !note.trim().is_empty());
     match (scene.layout == Layout::Raw, written) {
-        (true, Some(note)) => Some(format!("{RAW_TEXT}\n{note}")),
-        (true, None) => Some(RAW_TEXT.to_owned()),
+        (true, Some(note)) => Some(format!("{said}\n{note}")),
+        (true, None) => Some(said.to_owned()),
         (false, written) => written,
     }
 }
 
+impl Media {
+    /// Stores the still of a `raw` scene and answers its part name, when it is a picture.
+    fn still(&mut self, bytes: Vec<u8>) -> Option<String> {
+        let facts = picture(&bytes)?;
+        self.parts.push((format!("image{}.{}", self.parts.len() + 1, facts.extension), bytes));
+        self.parts.last().map(|(name, _)| name.clone())
+    }
+}
+
+fn pictured(scene: &Scene, number: usize, deck: &mut Deck<'_>) -> Option<Slide> {
+    let bytes = deck.stills.still(number - 1).filter(|_| scene.layout == Layout::Raw)?;
+    let part = deck.media.still(bytes)?;
+    let frame = Frame { x: 0.0, y: 0.0, width: deck.stage.width, height: deck.stage.height };
+    let links = [
+        ("rId1".to_owned(), "slideLayout", "../slideLayouts/slideLayout1.xml".to_owned()),
+        ("rId2".to_owned(), "notesSlide", format!("../notesSlides/notesSlide{number}.xml")),
+        ("rId3".to_owned(), "image", format!("../media/{part}")),
+    ];
+    let drawn = shapes::picture(2, &frame, &deck.stage, "rId3", "Animated slide");
+    let xml = format!(
+        "{HEAD}<p:sld {NS}><p:cSld><p:spTree>{TREE}{drawn}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/>\
+         </p:clrMapOvr></p:sld>"
+    );
+    Some(Slide { xml, rels: rels(&links), note: note(scene, RAW_PICTURED) })
+}
+
 /// The slide of `scene`, numbered `number` from 1.
 pub(crate) fn slide(scene: &Scene, number: usize, deck: &mut Deck<'_>) -> Slide {
+    if let Some(slide) = pictured(scene, number, deck) {
+        return slide;
+    }
     let read = blocks(scene, deck);
     let layout = if scene.layout == Layout::Raw { Layout::Center } else { scene.layout };
     let natural = |path: &str| {
@@ -119,7 +153,7 @@ pub(crate) fn slide(scene: &Scene, number: usize, deck: &mut Deck<'_>) -> Slide 
         cover: layout == Layout::Cover,
         size: None,
     };
-    let note = note(scene);
+    let note = note(scene, RAW_TEXT);
     let mut links = vec![("rId1".to_owned(), "slideLayout", "../slideLayouts/slideLayout1.xml".to_owned())];
     if note.is_some() {
         links.push(("rId2".to_owned(), "notesSlide", format!("../notesSlides/notesSlide{number}.xml")));

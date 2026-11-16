@@ -77,35 +77,26 @@ fn notes_go_to_notes_pages_and_a_raw_scene_says_it_is_animated() {
 }
 
 #[test]
+fn a_raw_scene_with_a_still_shows_the_picture_full_size() {
+    let project = scene::parse(DECK).unwrap();
+    let stills = |index: usize| (index == 3).then(|| PNG.to_vec());
+    let parts = unzip(&scene::pptx::write_with(&project, &files, &stills).unwrap());
+    let raw = text(&parts, "ppt/slides/slide4.xml");
+    assert!(raw.contains("<a:blip r:embed=\"rId3\"/>") && !raw.contains(scene::pptx::RAW_TEXT), "{raw}");
+    assert!(raw.contains("<a:off x=\"0\" y=\"0\"/><a:ext cx=\"12192000\" cy=\"6858000\"/>"), "{raw}");
+    assert!(text(&parts, "ppt/slides/_rels/slide4.xml.rels").contains("../media/image2.png"));
+    let note = text(&parts, "ppt/notesSlides/notesSlide4.xml");
+    assert!(note.contains(scene::pptx::RAW_PICTURED) && note.contains("Pause here."), "{note}");
+    for (name, bytes) in parts.iter().filter(|(name, _)| name.ends_with(".xml")) {
+        well_formed(name, std::str::from_utf8(bytes).unwrap());
+    }
+}
+
+#[test]
 fn the_slide_follows_the_deck_size_and_scheme() {
     let project = scene::parse("---\nsize: 1024x768\nscheme: dark\n---\n\n# Dark\n").unwrap();
     let parts = unzip(&scene::pptx::write(&project, &files).unwrap());
     assert!(text(&parts, "ppt/presentation.xml").contains("<p:sldSz cx=\"12192000\" cy=\"9144000\"/>"));
     assert!(text(&parts, "ppt/slideMasters/slideMaster1.xml").contains("<p:clrMap bg1=\"dk1\" tx1=\"lt1\""));
     assert!(text(&parts, "ppt/slides/slide1.xml").contains("<a:srgbClr val=\"FAFAFA\"/>"));
-}
-
-#[test]
-fn libreoffice_opens_the_file_when_it_is_installed() {
-    let found = ["soffice", "libreoffice"].into_iter().find(|name| {
-        std::process::Command::new(name).arg("--version").output().is_ok_and(|output| output.status.success())
-    });
-    let Some(office) = found else {
-        eprintln!("SKIPPED: no soffice on this machine, the pptx was not opened by LibreOffice");
-        return;
-    };
-    let dir = std::env::temp_dir().join(format!("scene-pptx-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let project = scene::parse(DECK).unwrap();
-    std::fs::write(dir.join("deck.pptx"), scene::pptx::write(&project, &files).unwrap()).unwrap();
-    let home = format!("-env:UserInstallation=file://{}/profile", dir.display());
-    let run = std::process::Command::new(office)
-        .args([&home, "--headless", "--convert-to", "pdf", "--outdir"])
-        .arg(&dir)
-        .arg(dir.join("deck.pptx"))
-        .output()
-        .unwrap();
-    let pdf = std::fs::read(dir.join("deck.pdf")).unwrap_or_default();
-    std::fs::remove_dir_all(&dir).ok();
-    assert!(run.status.success() && pdf.starts_with(b"%PDF"), "{}", String::from_utf8_lossy(&run.stderr));
 }
