@@ -35,6 +35,12 @@ All notable changes to Diapo. Versions follow SemVer.
 - The app mark is the Solar `presentation-graph-bold-duotone` glyph.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
+- `apps/cli`: the `diapo` command line. `new`, `serve` (live reload, problems in the terminal
+  and as a browser overlay), `build` (one offline HTML file), `check`, `guide`, `login`,
+  `logout`, `whoami`, `list`, `pull`, `push`, `open`, and an `export` that says what is not
+  built yet. `--json` on every command. Reference: `docs/cli.md`.
+- The release workflow: a `v*` tag publishes `diapo` for Linux (static) and macOS, amd64 and
+  arm64, with `checksums.txt`. `install.sh` installs it through `facile`.
 
 ## [0.1.0] - 2026-11-16
 
