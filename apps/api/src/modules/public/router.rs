@@ -6,7 +6,7 @@ use tronc::Result;
 use tronc::http::{rate_limit, security_override};
 use tronc::json::Json;
 
-use super::guard::{framable, limiter};
+use super::guard::{framable, limiter, loose};
 use super::info::{self, PublicDeck, shared};
 use crate::extract::Params;
 use crate::modules::assets::serve::send;
@@ -48,6 +48,9 @@ pub fn api_routes(ancestors: &[String]) -> std::result::Result<Router<AppState>,
         .route("/public/decks/{token}", get(deck))
         .route("/public/decks/{token}/frame", get(frame).layer(open))
         .route_layer(axum::middleware::from_fn_with_state(limiter(), rate_limit))
-        .route("/public/decks/{token}/assets/{*name}", get(asset))
+        .route(
+            "/public/decks/{token}/assets/{*name}",
+            get(asset).layer(axum::middleware::from_fn_with_state(loose(), rate_limit)),
+        )
         .layer(axum::middleware::map_response(cookieless)))
 }

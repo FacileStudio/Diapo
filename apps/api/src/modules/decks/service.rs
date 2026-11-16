@@ -84,7 +84,6 @@ pub async fn create(state: &AppState, author: &Author, request: CreateRequest) -
     .map_err(db)?;
     write::revision(&mut tx, &row, author).await.map_err(db)?;
     tx.commit().await.map_err(db)?;
-    state.thumbs.request(state, row.id);
     Ok(answer(row, have))
 }
 
