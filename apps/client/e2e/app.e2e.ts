@@ -32,24 +32,35 @@ test('a deck is created from the list and opens in the editor', async () => {
 	id = new URL(editor.url()).pathname.split('/').pop() ?? '';
 	await waitData(editor, 'save-status', 'status', 'clean');
 	await waitData(editor, 'preview', 'scene', 0);
-	expect(await editor.getByTestId('scene-count').textContent()).toContain('1 scène');
+	expect(await editor.getByTestId('scene-count').textContent()).toContain('2 scènes');
+	expect(await editor.locator('.cm-content').textContent()).toContain('Une idée par diapositive.');
+});
+
+test('every control of the editor header has the same height', async () => {
+	const heights = await editor
+		.locator('header')
+		.first()
+		.locator('a, button, input')
+		.evaluateAll((controls) => controls.map((control) => Math.round(control.getBoundingClientRect().height)));
+	expect(heights.length).toBeGreaterThanOrEqual(8);
+	expect([...new Set(heights)]).toEqual([44]);
 });
 
 test('typing a second slide saves it and the preview follows the caret', async () => {
 	await appendSource(editor, SECOND);
 	await waitData(editor, 'save-status', 'status', 'clean');
-	await waitData(editor, 'preview', 'scene', 1);
-	await waitData(editor, 'preview', 'step', 3);
+	await waitData(editor, 'preview', 'scene', 2);
+	await waitData(editor, 'preview', 'step', 6);
 	expect(await (await stageFrame(editor, 'preview')).locator('.scene.is-active h2').textContent()).toBe('Deuxième');
-	expect(await editor.getByTestId('scene-count').textContent()).toContain('2 scènes');
-	expect(await editor.getByTestId('position').textContent()).toContain('Scène 2 sur 2');
+	expect(await editor.getByTestId('scene-count').textContent()).toContain('3 scènes');
+	expect(await editor.getByTestId('position').textContent()).toContain('Scène 3 sur 3');
 	expect((await api<{ source: string }>(stack, `/decks/${id}`)).source).toContain('## Deuxième');
 });
 
 test('a source the parser refuses shows its line, and saves again once fixed', async () => {
 	await appendSource(editor, '\n---\ncolour: red\n---\n\nFin\n');
 	await waitData(editor, 'save-status', 'status', 'invalid');
-	expect(await editor.getByTestId('scene-errors').textContent()).toMatch(/Ligne 1\d/);
+	expect(await editor.getByTestId('scene-errors').textContent()).toMatch(/Ligne \d+/);
 	await editor.keyboard.press('Control+z');
 	await waitData(editor, 'save-status', 'status', 'clean');
 	expect(await editor.getByTestId('scene-errors').count()).toBe(0);
@@ -75,7 +86,7 @@ test('an outside write reloads a clean editor and stops a dirty one in a conflic
 test('present mode steps through reveals and scenes, in step with the presenter view', async () => {
 	await editor.getByTestId('present').click();
 	await editor.waitForURL(/\/present$/);
-	await waitData(editor, 'present', 'last', 3);
+	await waitData(editor, 'present', 'last', 6);
 	await editor.keyboard.press('ArrowRight');
 	await waitData(editor, 'present', 'step', 1);
 	expect(await shown(editor, 'present', '.scene.is-active li[data-step="1"]')).toBe('hidden');
@@ -89,6 +100,9 @@ test('present mode steps through reveals and scenes, in step with the presenter 
 	const presenter = await editor.context().newPage();
 	await presenter.goto(`${stack.base}/decks/${id}/presenter`);
 	await waitData(presenter, 'presenter', 'step', 3);
+	await presenter.getByTestId('notes').getByText('Vos notes vont ici.').waitFor({ timeout: 5_000 });
+	await presenter.keyboard.press('End');
+	await waitData(editor, 'present', 'step', 6);
 	await presenter.getByTestId('notes').getByText('À moi.').waitFor({ timeout: 5_000 });
 	await presenter.keyboard.press('Home');
 	await waitData(editor, 'present', 'scene', 0);
@@ -115,15 +129,17 @@ test('a shared deck opens without a session, as a page and as an embed, until th
 	const calls: string[] = [];
 	visitor.on('request', (request) => calls.push(new URL(request.url()).pathname));
 	await visitor.goto(url);
-	await waitData(visitor, 'viewer', 'last', 3);
+	await waitData(visitor, 'viewer', 'last', 6);
 	await visitor.keyboard.press('ArrowRight');
 	await visitor.getByTestId('zone-next').click();
 	await waitData(visitor, 'viewer', 'step', 2);
+	await visitor.keyboard.press('End');
+	await waitData(visitor, 'viewer', 'scene', 2);
 	expect(await (await stageFrame(visitor, 'viewer')).locator('.scene.is-active h2').textContent()).toBe('Seconde');
 	expect(await visitor.getByTestId('made-with').getAttribute('href')).toBe('/');
 
 	await visitor.goto(`${stack.base}/embed/${token}`);
-	await waitData(visitor, 'viewer', 'last', 3);
+	await waitData(visitor, 'viewer', 'last', 6);
 	expect(await visitor.getByTestId('viewer-open').getAttribute('href')).toBe(`/p/${token}`);
 	expect(await visitor.getByTestId('made-with').count()).toBe(0);
 	const own = calls.filter((path) => path.startsWith('/api/') && !path.startsWith('/api/public/'));

@@ -80,6 +80,26 @@ export const editor = {
 	'insert.bullets': ['Bullets with steps', 'Liste à étapes', 'Lista por pasos', 'Liste mit Schritten'],
 	'insert.split': ['Split with image', 'Deux colonnes avec image', 'Dos columnas con imagen', 'Zwei Spalten mit Bild'],
 	'insert.raw': ['Animated title (raw)', 'Titre animé (raw)', 'Título animado (raw)', 'Animierter Titel (raw)'],
+	'starter.sub': [
+		'One idea per slide.',
+		'Une idée par diapositive.',
+		'Una idea por diapositiva.',
+		'Eine Idee pro Folie.'
+	],
+	'starter.heading': ['First topic', 'Premier sujet', 'Primer tema', 'Erstes Thema'],
+	'starter.first': [
+		'A point that appears on the next click',
+		'Un point qui apparaît au clic suivant',
+		'Un punto que aparece en el siguiente clic',
+		'Ein Punkt, der beim nächsten Klick erscheint'
+	],
+	'starter.second': ['Then the one after', 'Puis le suivant', 'Luego el siguiente', 'Dann der nächste'],
+	'starter.note': [
+		'Your notes go here. They show in the presenter view, never on screen.',
+		'Vos notes vont ici. Elles s’affichent dans la vue de l’orateur, jamais à l’écran.',
+		'Tus notas van aquí. Se muestran en la vista del orador, nunca en pantalla.',
+		'Ihre Notizen stehen hier. Sie erscheinen in der Referentenansicht, nie auf der Leinwand.'
+	],
 	'template.title': ['Title', 'Titre', 'Título', 'Titel'],
 	'template.subtitle': [
 		'A line that says what this is about.',

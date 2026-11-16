@@ -34,6 +34,17 @@ const raw = () =>
 		''
 	].join('\n');
 
+/**
+ * The source a new deck opens with, in the person's language: a cover, then one scene that
+ * reveals two points and carries a presenter note. `title` goes in as plain text.
+ */
+export function starterSource(title: string): string {
+	const plain = title.replace(/[\r\n"\\<>]/g, ' ').trim();
+	const head = `---\ntitle: "${plain}"\nlayout: cover\n---\n\n# ${plain}\n\n${t('starter.sub')}\n`;
+	const points = `- ${t('starter.first')} {step=1}\n- ${t('starter.second')} {step=2}\n`;
+	return `${head}\n---\n\n## ${t('starter.heading')}\n\n${points}\n<!-- ${t('starter.note')} -->\n`;
+}
+
 /** The scenes the insert menu offers. */
 export const TEMPLATES: Template[] = [
 	{ id: 'cover', label: 'insert.cover', scene: cover },
