@@ -8,13 +8,25 @@ use serde_json::{Value, json};
 
 pub const VIDEO: &[u8] = b"\0\0\0\x18ftypisom-a-video";
 
+/// How the mock answers a render it is asked about.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Mode {
+    /// Running once, then done.
+    #[default]
+    Done,
+    /// Running once, then failed.
+    Fails,
+    /// Running for ever.
+    Hold,
+}
+
 #[derive(Default)]
 pub struct Seen {
     pub bearers: Vec<String>,
     pub spec: String,
     pub files: Vec<String>,
     reads: u32,
-    fails: bool,
+    mode: Mode,
 }
 
 pub type Mock = Arc<Mutex<Seen>>;
@@ -43,16 +55,16 @@ async fn read(State(mock): State<Mock>, headers: HeaderMap, Path(id): Path<Strin
     bearer(&mock, &headers);
     let mut seen = mock.lock().unwrap();
     seen.reads += 1;
-    let state = match (seen.reads, seen.fails) {
-        (1, _) => json!({"id": id, "state": "running", "frame": 3, "frames": 10, "error": null}),
-        (_, true) => json!({"id": id, "state": "failed", "frame": 3, "frames": 10, "error": "the scene threw"}),
-        (_, false) => json!({"id": id, "state": "done", "frame": 10, "frames": 10, "error": null}),
+    let state = match (seen.reads, seen.mode) {
+        (1, _) | (_, Mode::Hold) => json!({"id": id, "state": "running", "frame": 3, "frames": 10, "error": null}),
+        (_, Mode::Fails) => json!({"id": id, "state": "failed", "frame": 3, "frames": 10, "error": "the scene threw"}),
+        (_, Mode::Done) => json!({"id": id, "state": "done", "frame": 10, "frames": 10, "error": null}),
     };
     axum::Json(state)
 }
 
-pub async fn mock(fails: bool) -> (String, Mock) {
-    let seen: Mock = Arc::new(Mutex::new(Seen { fails, ..Seen::default() }));
+pub async fn mock(mode: Mode) -> (String, Mock) {
+    let seen: Mock = Arc::new(Mutex::new(Seen { mode, ..Seen::default() }));
     let router = Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/api/renders", post(queue))

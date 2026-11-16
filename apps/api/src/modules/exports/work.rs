@@ -7,7 +7,7 @@ use tronc::{Error, Result};
 use uuid::Uuid;
 
 use super::{Format, build, clap, path};
-use crate::captures::Ask;
+use crate::captures::{Ask, safe};
 use crate::extract::db;
 use crate::modules::decks::types::DeckRow;
 use crate::state::AppState;
@@ -63,7 +63,9 @@ async fn pdf(state: &AppState, id: Uuid, deck: &DeckRow, steps: bool) -> Result<
         }
     };
     let read = match status {
-        Ok(status) if status.state == State::Done => tokio::fs::read(captures.layout(&job).output(Kind::Pdf)).await,
+        Ok(status) if status.state == State::Done => {
+            captures.read(&captures.layout(&job).output(Kind::Pdf), safe::DOCUMENT).await
+        }
         Ok(status) => Err(std::io::Error::other(status.error.unwrap_or_else(|| "the capture was cancelled".into()))),
         Err(error) => Err(std::io::Error::other(error.message)),
     };
@@ -89,7 +91,7 @@ async fn stills(state: &AppState, deck: &DeckRow) -> Option<build::Pictures> {
     let done = captures.wait(&job, STILLS_LIMIT, |_| {}).await.is_ok_and(|status| status.state == State::Done);
     let mut pictures = build::Pictures::new();
     for scene in raw.iter().filter(|_| done) {
-        if let Ok(bytes) = tokio::fs::read(captures.layout(&job).still(*scene)).await {
+        if let Ok(bytes) = captures.read(&captures.layout(&job).still(*scene), safe::PICTURE).await {
             pictures.insert(*scene, bytes);
         }
     }
@@ -152,20 +154,16 @@ async fn finish(state: &AppState, id: Uuid, built: Result<Built>) {
     }
 }
 
-/// Runs the job `id` on `deck` as it was when the job was queued: one job at a time in the
-/// process, whatever its format.
-pub async fn run(state: &AppState, id: Uuid, deck: DeckRow) {
-    let Ok(_turn) = state.exports.acquire().await else { return };
-    let started: std::result::Result<Option<(String, bool)>, _> = sqlx::query_as(
-        "UPDATE exports SET status = 'running' WHERE id = $1 AND status = 'queued' RETURNING format, steps",
-    )
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await;
-    let Ok(Some((format, steps))) = started else { return };
-    let built = match Format::named(&format) {
-        Some(format) => built(state, id, format, deck, steps).await,
-        None => Err(Error::failed("unknown format")),
-    };
-    finish(state, id, built).await;
+/// Runs the job `id` on `deck` as it was when the job was queued. Two lanes, one job at a time
+/// in each: MP4, which waits on Clap for as long as a render takes, and every other format.
+pub async fn run(state: &AppState, id: Uuid, deck: DeckRow, format: Format) {
+    let lane = if format == Format::Mp4 { &state.videos } else { &state.exports };
+    let Ok(_turn) = lane.acquire().await else { return };
+    let started: std::result::Result<Option<bool>, _> =
+        sqlx::query_scalar("UPDATE exports SET status = 'running' WHERE id = $1 AND status = 'queued' RETURNING steps")
+            .bind(id)
+            .fetch_optional(&state.pool)
+            .await;
+    let Ok(Some(steps)) = started else { return };
+    finish(state, id, built(state, id, format, deck, steps).await).await;
 }
