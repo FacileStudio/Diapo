@@ -72,6 +72,16 @@ pub async fn deck(state: &AppState, token: &str) -> Result<PublicDeck> {
     })
 }
 
+/// Whether `deck` has a live share link. A failed query answers no.
+pub async fn is_shared(state: &AppState, deck: Uuid) -> bool {
+    let live =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM share_links WHERE deck_id = $1 AND revoked_at IS NULL)")
+            .bind(deck)
+            .fetch_one(&state.pool)
+            .await;
+    live.unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
