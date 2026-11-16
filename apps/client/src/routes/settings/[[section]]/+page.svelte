@@ -10,7 +10,7 @@
 		sectionHref,
 		settingsRoute
 	} from '@facile/muse';
-	import { t } from '$lib/i18n';
+	import { rememberLocale, t } from '$lib/i18n';
 	import { session } from '$lib/session.svelte';
 	import { saveTheme } from '$lib/theme';
 
@@ -44,7 +44,12 @@
 					avatar={session.user?.avatar_url}
 				/>
 			{:else}
-				<PreferencesSection title={t('settings.preferences')} theme={readTheme()} onThemeChange={saveTheme} />
+				<PreferencesSection
+					title={t('settings.preferences')}
+					theme={readTheme()}
+					onThemeChange={saveTheme}
+					onLocaleChange={rememberLocale}
+				/>
 			{/if}
 		{/snippet}
 	</SettingsLayout>

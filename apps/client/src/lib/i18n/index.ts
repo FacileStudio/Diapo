@@ -35,11 +35,16 @@ export function bindLocale(source: () => Locale): void {
 	active = source;
 }
 
+/** The locale currently in force. */
+export function locale(): Locale {
+	return resolveLocale(active());
+}
+
 /** A day and a time, written the way the current locale writes them. */
 export function formatMoment(iso: string): string {
 	const date = new Date(iso);
 	if (Number.isNaN(date.getTime())) return '';
-	return new Intl.DateTimeFormat(resolveLocale(active()), { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+	return new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 /** Translates an app message in the current locale. */
