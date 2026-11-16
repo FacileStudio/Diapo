@@ -38,7 +38,10 @@
 		if (!session.ready) void session.load();
 	});
 
-	const pages = $derived([{ label: t('decks.title'), href: '/', icon: icons.home, active: path === '/' || focused }]);
+	const pages = $derived([
+		{ label: t('decks.title'), href: '/', icon: icons.home, active: path === '/' || focused },
+		{ label: t('trash.title'), href: '/trash', icon: icons.remove, active: path.startsWith('/trash') }
+	]);
 	const navUser = $derived({
 		name: session.user?.name || session.user?.email || t('account'),
 		email: session.user?.email,
