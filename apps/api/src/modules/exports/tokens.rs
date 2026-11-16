@@ -10,7 +10,7 @@ pub trait Tokens: Send + Sync {
     async fn token(&self, user_id: i64) -> Result<String>;
 }
 
-/// porte's token exchange as [`Tokens`].
+/// porte's token exchange as [`Tokens`]. It caches each token until shortly before it expires.
 pub struct Exchanged(pub porte::exchange::Exchanger);
 
 #[async_trait::async_trait]

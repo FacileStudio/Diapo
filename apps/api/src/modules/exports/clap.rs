@@ -20,7 +20,12 @@ use crate::state::AppState;
 /// The frame rate of an exported video.
 pub const FPS: u32 = 30;
 
-/// How long a render may take on Clap's side before the export gives up.
+/// The largest video copied back from Clap.
+pub const MAX_VIDEO_BYTES: i64 = 2 << 30;
+
+/// How long a render may take on Clap's side before the export gives up. The bearer is asked
+/// for again before every call: porte's exchange caches it and mints a new one before it
+/// expires, so a render longer than a token's life keeps its access.
 pub const LIMIT: Duration = Duration::from_secs(60 * 60);
 
 /// Where Clap is and how to reach it as a person.
@@ -90,10 +95,11 @@ async fn form(state: &AppState, deck: &DeckRow) -> Result<Form> {
     Ok(form)
 }
 
-async fn followed(clap: &Clap, state: &AppState, job: Uuid, (render, token): (&str, &str)) -> Result<()> {
+async fn followed(clap: &Clap, state: &AppState, job: Uuid, (render, user): (&str, i64)) -> Result<()> {
     let deadline = Instant::now() + LIMIT;
     loop {
         let url = format!("{}/api/renders/{render}", clap.url);
+        let token = clap.tokens.token(user).await?;
         let read: Render = answered(clap.http.get(url).bearer_auth(token).send().await.map_err(down)?)
             .await?
             .json()
@@ -112,20 +118,38 @@ async fn followed(clap: &Clap, state: &AppState, job: Uuid, (render, token): (&s
     }
 }
 
-async fn copied(clap: &Clap, state: &AppState, job: Uuid, (render, token): (&str, &str)) -> Result<i64> {
-    let url = format!("{}/api/renders/{render}/file", clap.url);
-    let mut response = answered(clap.http.get(url).bearer_auth(token).send().await.map_err(down)?).await?;
+async fn streamed(response: &mut reqwest::Response, file: &mut tokio::fs::File) -> Result<i64> {
     let failed = |error: std::io::Error| Error::internal("failed to store an export", error);
-    let target = path(&state.data_dir, job);
-    tokio::fs::create_dir_all(target.parent().unwrap_or(&state.data_dir)).await.map_err(failed)?;
-    let mut file = tokio::fs::File::create(&target).await.map_err(failed)?;
     let mut size = 0i64;
     while let Some(chunk) = response.chunk().await.map_err(down)? {
         size += chunk.len() as i64;
+        if size > MAX_VIDEO_BYTES {
+            return Err(Error::too_large("the video is larger than an export may be"));
+        }
         file.write_all(&chunk).await.map_err(failed)?;
     }
-    file.flush().await.map_err(failed)?;
+    file.sync_all().await.map_err(failed)?;
     Ok(size)
+}
+
+async fn copied(clap: &Clap, state: &AppState, job: Uuid, (render, user): (&str, i64)) -> Result<i64> {
+    let url = format!("{}/api/renders/{render}/file", clap.url);
+    let token = clap.tokens.token(user).await?;
+    let mut response = answered(clap.http.get(url).bearer_auth(token).send().await.map_err(down)?).await?;
+    let failed = |error: std::io::Error| Error::internal("failed to store an export", error);
+    let target = path(&state.data_dir, job);
+    let partial = target.with_extension("part");
+    tokio::fs::create_dir_all(target.parent().unwrap_or(&state.data_dir)).await.map_err(failed)?;
+    let mut file = tokio::fs::File::create(&partial).await.map_err(failed)?;
+    let written = streamed(&mut response, &mut file).await;
+    let moved = match written {
+        Ok(size) => tokio::fs::rename(&partial, &target).await.map(|()| size).map_err(failed),
+        Err(error) => Err(error),
+    };
+    if moved.is_err() {
+        tokio::fs::remove_file(&partial).await.ok();
+    }
+    moved
 }
 
 /// Renders `deck` to an MP4 on Clap as the person who asked for the export `job`, and writes
@@ -138,11 +162,12 @@ pub async fn render(state: &AppState, job: Uuid, deck: &DeckRow) -> Result<Built
         .fetch_one(&state.pool)
         .await
         .map_err(db)?;
-    let token = clap.tokens.token(user.ok_or_else(|| Error::failed("the account behind this export is gone"))?).await?;
+    let user = user.ok_or_else(|| Error::failed("the account behind this export is gone"))?;
+    let token = clap.tokens.token(user).await?;
     let posted =
         clap.http.post(format!("{}/api/renders", clap.url)).bearer_auth(&token).multipart(form(state, deck).await?);
     let queued: Render = answered(posted.send().await.map_err(down)?).await?.json().await.map_err(down)?;
-    followed(clap, state, job, (&queued.id, &token)).await?;
-    let size = copied(clap, state, job, (&queued.id, &token)).await?;
+    followed(clap, state, job, (&queued.id, user)).await?;
+    let size = copied(clap, state, job, (&queued.id, user)).await?;
     Ok(Built { bytes: None, size, notice: String::new() })
 }
