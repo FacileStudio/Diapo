@@ -1,12 +1,15 @@
 //! Exports: a deck turned into a file. Each export is a job row and, once done, a file under
-//! `DATA_DIR/exports` that is kept one day. HTML and PPTX are built in the process, one job at a
-//! time; PDF and MP4 are named and answer `unavailable` until the capture worker exists.
+//! `DATA_DIR/exports` that is kept one day. Jobs run one at a time. HTML and PPTX are built in
+//! the process, a PDF by the capture service, an MP4 by Clap.
 
 pub mod build;
+pub mod clap;
 mod download;
 pub mod purge;
 mod router;
 pub mod service;
+pub mod tokens;
+pub mod work;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -48,9 +51,9 @@ impl Format {
         }
     }
 
-    /// Whether this build can produce the format.
-    pub fn ready(self) -> bool {
-        matches!(self, Format::Html | Format::Pptx)
+    /// The format `name` spells.
+    pub fn named(name: &str) -> Option<Format> {
+        [Format::Html, Format::Pdf, Format::Pptx, Format::Mp4].into_iter().find(|format| format.name() == name)
     }
 
     /// The media type of the download. An HTML export is a download, never a page of this

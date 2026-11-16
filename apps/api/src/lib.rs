@@ -3,6 +3,7 @@
 
 pub mod apiref;
 pub mod auth;
+pub mod captures;
 pub mod env;
 pub mod extract;
 pub mod mcp;

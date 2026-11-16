@@ -11,7 +11,10 @@ use tokio_util::sync::CancellationToken;
 use tronc::mcp::{App, AppConfig, PostgresPending, keep_pruned};
 
 use crate::auth::Kits;
+use crate::captures::Captures;
 use crate::env::Config;
+use crate::modules::exports::clap::Clap;
+use crate::modules::exports::tokens::Exchanged;
 use crate::modules::frame::FrameKey;
 use crate::state::AppState;
 
@@ -55,6 +58,13 @@ async fn signal() {
     }
 }
 
+fn clap(config: &Config, kits: &Kits) -> Option<Clap> {
+    let exchanger = kits.exchanger.clone().filter(|_| !config.clap_url.is_empty())?;
+    Clap::at(&config.clap_url, Arc::new(Exchanged(exchanger)))
+        .inspect_err(|error| tracing::error!(%error, "clap: mp4 exports are off"))
+        .ok()
+}
+
 /// The shared state for `pool` under `config`.
 pub fn state(config: &Config, pool: PgPool, kits: &Kits) -> AppState {
     AppState {
@@ -71,6 +81,9 @@ pub fn state(config: &Config, pool: PgPool, kits: &Kits) -> AppState {
         embed_ancestors: config.embed_ancestors.clone().into(),
         client_dir: Arc::new(tronc::spa::dir_from_env()),
         exports: Arc::new(tokio::sync::Semaphore::new(1)),
+        captures: Captures::under(&config.data_dir),
+        thumbs: Default::default(),
+        clap: clap(config, kits),
     }
 }
 
@@ -113,6 +126,8 @@ async fn serve(config: Config, pool: PgPool) -> Result<(), BootError> {
     let token = CancellationToken::new();
     let mut state = state(&config, pool, &kits);
     let mcp = mcp_app(&config, &kits, &mut state)?;
+    tokio::fs::create_dir_all(state.captures.dir()).await.ok();
+    crate::modules::exports::purge::recover(&state).await?;
     spawn_loops(&kits, &state, &token);
     let mut http = tronc::http::Config::from_core(&config.core);
     http.security = crate::security::config(http.security, &tronc::spa::dir_from_env(), &config.bulle.url);

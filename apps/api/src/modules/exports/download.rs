@@ -47,12 +47,7 @@ fn dress(response: &mut Response, job: &Job, mime: &'static str) {
 }
 
 fn mime(format: &str) -> &'static str {
-    match format {
-        "pptx" => super::Format::Pptx.mime(),
-        "pdf" => super::Format::Pdf.mime(),
-        "mp4" => super::Format::Mp4.mime(),
-        _ => super::Format::Html.mime(),
-    }
+    super::Format::named(format).unwrap_or(super::Format::Html).mime()
 }
 
 /// `GET /exports/{id}/file`: the file of a finished job, as a download, for a caller who reads

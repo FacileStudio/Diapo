@@ -40,19 +40,25 @@ pub fn html(project: &scene::Project, bundle: &Bundle) -> Vec<u8> {
     scene::compile(project, &scene::Options::new().assets(&inline)).into_bytes()
 }
 
-/// An editable PowerPoint file, with the deck's pictures embedded.
-pub fn pptx(project: &scene::Project, bundle: &Bundle) -> Result<Vec<u8>> {
+/// Pictures of scenes a file cannot hold as shapes, by scene index.
+pub type Pictures = HashMap<usize, Vec<u8>>;
+
+/// An editable PowerPoint file, with the deck's pictures embedded and a picture for each
+/// animated scene `pictures` has one for.
+pub fn pptx(project: &scene::Project, bundle: &Bundle, pictures: &Pictures) -> Result<Vec<u8>> {
     let read = |path: &str| bundle.get(name::referenced(path).0).map(|(_, bytes)| bytes.clone());
-    scene::pptx::write(project, &read).map_err(|error| Error::internal("failed to write the pptx", error))
+    let still = |index: usize| pictures.get(&index).cloned();
+    scene::pptx::write_with(project, &read, &still).map_err(|error| Error::internal("failed to write the pptx", error))
 }
 
-/// The file of `format` for `source`, built off the async threads.
-pub async fn file(format: Format, source: String, bundle: Bundle) -> Result<Vec<u8>> {
+/// The file of `format` for `source`, built off the async threads. Only HTML and PPTX are built
+/// here: a PDF comes from the capture service and an MP4 from Clap.
+pub async fn file(format: Format, source: String, bundle: Bundle, pictures: Pictures) -> Result<Vec<u8>> {
     let work = move || {
         let project = scene::parse(&source).map_err(|errors| Error::failed(errors.to_string()))?;
         match format {
             Format::Html => Ok(html(&project, &bundle)),
-            Format::Pptx => pptx(&project, &bundle),
+            Format::Pptx => pptx(&project, &bundle, &pictures),
             Format::Pdf | Format::Mp4 => Err(Error::unavailable("this export is not available yet")),
         }
     };

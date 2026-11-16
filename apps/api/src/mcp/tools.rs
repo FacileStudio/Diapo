@@ -18,8 +18,9 @@ one place. It needs the rev diapo_get_deck answered.";
 const GUIDE: &str = "The scene format reference: frontmatter keys, layouts, step reveals, timelines, assets and \
 the errors the parser answers. Call it once before you write or edit a deck.";
 const EXPORT: &str = "Exports a deck to a file and answers a download link that works for one hour without \
-signing in: html (one offline file) or pptx (editable PowerPoint). pdf and mp4 are not available yet and answer \
-an error. Each call builds a new file from the deck as it is now.";
+signing in: html (one offline file), pptx (editable PowerPoint), pdf (a page per slide, or per step with steps) \
+or mp4 (a video). It waits up to 30 seconds; a slower export answers its job id: call again with job_id to \
+read it. Without job_id each call builds a new file from the deck as it is now.";
 const DELETE: &str = "Moves a deck to the trash, where it stays 30 days before it is deleted for good. The \
 person confirms first and nothing changes until they do.";
 

@@ -6,9 +6,12 @@ use sqlx::PgPool;
 use tokio::sync::Semaphore;
 use tronc::mcp::Confirmations;
 
+use crate::captures::Captures;
+use crate::captures::thumbs::Thumbs;
 use crate::env::Limits;
 use crate::modules::assistant::Bulle;
 use crate::modules::events::Events;
+use crate::modules::exports::clap::Clap;
 use crate::modules::frame::FrameKey;
 
 /// What every handler shares.
@@ -41,4 +44,10 @@ pub struct AppState {
     pub client_dir: Arc<PathBuf>,
     /// The one export slot: a single job builds at a time.
     pub exports: Arc<Semaphore>,
+    /// The directory shared with the capture worker.
+    pub captures: Captures,
+    /// The thumbnails being made.
+    pub thumbs: Thumbs,
+    /// Clap, for MP4 exports; `None` when `CLAP_URL` is empty or Registre is not configured.
+    pub clap: Option<Clap>,
 }

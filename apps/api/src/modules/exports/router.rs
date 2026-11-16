@@ -18,6 +18,8 @@ use crate::state::AppState;
 #[serde(deny_unknown_fields)]
 struct ExportRequest {
     format: Format,
+    #[serde(default)]
+    steps: bool,
 }
 
 async fn create(
@@ -26,7 +28,7 @@ async fn create(
     Path(raw): Path<String>,
     Json(body): Json<ExportRequest>,
 ) -> Result<(StatusCode, Json<Job>)> {
-    Ok((StatusCode::CREATED, Json(service::create(&state, who.user_id, id(&raw)?, body.format).await?)))
+    Ok((StatusCode::CREATED, Json(service::create(&state, who.user_id, id(&raw)?, body.format, body.steps).await?)))
 }
 
 async fn show(State(state): State<AppState>, who: Identity, Path(raw): Path<String>) -> Result<Json<Job>> {
