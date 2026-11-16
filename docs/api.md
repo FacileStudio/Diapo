@@ -38,6 +38,12 @@ A deck with no space is personal: only its owner reaches it. An instance admin g
 | `POST /decks/{id}/assets` | editor | Multipart: a `file` part, and an optional `name` part. `201` with the asset. The same name replaces the asset |
 | `GET /decks/{id}/assets/{name}` | viewer, or a frame link | The bytes. Range requests work, so a video seeks |
 | `DELETE /decks/{id}/assets/{name}` | editor | `204` |
+| `POST /decks/{id}/share` | editor | Shares the deck. `201` with `{shared, created_at, url}` for a new link; `200` without `url` when the deck is already shared. `?rotate=true` revokes the live link first |
+| `GET /decks/{id}/share` | editor | `{shared, created_at}` |
+| `DELETE /decks/{id}/share` | editor | Revokes the link, `204`; `404` when the deck is not shared |
+| `POST /decks/{id}/exports` | viewer | Body `{format}`: `html`, `pptx`, `pdf` or `mp4`. `201` with the finished job. See "Exports" |
+| `GET /exports/{id}` | viewer of its deck | The job |
+| `GET /exports/{id}/file` | viewer of its deck, or a signed link | The file, as a download |
 | `GET /spaces` | session | The caller's spaces and roles, mirrored from Registre |
 | `GET /assistant` | session | `{name, accent}` of the caller's Bulle assistant; `Bulle` on any failure |
 | `GET /auth/session` | none | `{user, bulle_url}`; `user` is `null` when signed out |
@@ -48,8 +54,7 @@ porte adds the sign-in routes (`/auth/oidc`, `/auth/oidc/callback`, `/auth/oidc/
 `/auth/oidc/device/exchange`, `/auth/sync-profile`, `/auth/backchannel-logout`, `/auth/logout`,
 `/auth/me`, `/auth/config`).
 
-Not built yet (wave C of `PLAN.md`): `POST /decks/{id}/exports`, `GET /exports/{id}`,
-`POST /decks/{id}/share`, `GET /p/{token}`, `/oembed`, `/embed/{token}`.
+The public routes need no session and are listed under "Share links".
 
 ## The rev rule
 
@@ -131,7 +136,8 @@ An asset is a file of one deck, named by the relative path the source writes: th
 A compiled deck runs the author's HTML and JavaScript. It must never run in the app's origin,
 where it could read the session and call the API as the person.
 
-`GET /decks/{id}/frame` is the only route that answers user HTML with an HTML content type. The
+`GET /decks/{id}/frame`, and its public twin for a shared deck, are the only routes that answer
+user HTML with an HTML content type. The
 client shows it in `<iframe sandbox="allow-scripts" src="/api/decks/{id}/frame">` and drives it
 with `postMessage` (`docs/format.md`). The response carries:
 
@@ -187,6 +193,102 @@ through `scene::Assets` to:
   renewed long before they expire. A frame left open for more than an hour must be reloaded
   before it can load an asset it has not loaded yet.
 
+## Share links
+
+A deck has at most one live share link. `POST /decks/{id}/share` creates it and answers its URL,
+`<public url>/p/<token>`, **once**: the token is 32 random bytes, URL-safe, and only its SHA-256
+is stored, so the server cannot show it again. A second `POST` answers `200` and the state
+without a `url`. `?rotate=true` revokes the live link and answers a new one. A revoked link is
+gone for good, and a trashed deck cannot be shared.
+
+`<public url>` is `PUBLIC_URL`, else the origin of `OIDC_SUCCESS_URL`, else
+`http://localhost:<PORT>`.
+
+### Public routes
+
+No session, no cookie (a layer removes any `Set-Cookie`), 5 requests a second per client with a
+burst of 60. Every one answers `404` for a token that is unknown, revoked, or on a trashed deck.
+None answers the source, a presenter note, the deck id or the space.
+
+| Route | Answers |
+|---|---|
+| `GET /api/public/decks/{token}` | `{title, scenes, steps, width, height, rev, frame, thumbnail}`. `steps` is the last global step, as `window.__scene.steps`. `frame` is the route below. `thumbnail` is a route, or `null` while no picture exists |
+| `GET /api/public/decks/{token}/frame?scene=n` | The same sandboxed document as the private frame. Its assets load from the route below, so the deck id never shows. Its policy ends with `frame-ancestors 'self' <EMBED_ANCESTORS>`, because the embed page that shows it sits inside another site |
+| `GET /api/public/decks/{token}/assets/{name}` | An asset of the shared deck, with `Access-Control-Allow-Origin: *`. The share token is the right to read, so these links do not expire while the link is live |
+| `GET /p/{token}` | The present page: the client's `index.html`, with `og:title`, `og:type`, `og:url`, `og:site_name`, the oEmbed discovery `<link>`, and `og:image` once a thumbnail exists, added to its `<head>`. The title is HTML-escaped. A link that is not live answers the bare shell with `404` |
+| `GET /p/{token}/thumbnail.jpg` | The first slide as a JPEG. `404` until one is rendered |
+| `GET /embed/{token}` | The same viewer for another site to frame: `Content-Security-Policy: ... frame-ancestors 'self' https://prisme.facile.studio` and no `X-Frame-Options`. The origins come from `EMBED_ANCESTORS` |
+| `GET /oembed?url=<share URL>&format=json` | oEmbed 1.0. `404` unless `url` is `<public url>/p/<token>` of a live link: a private deck URL, another host and an unknown token all look the same. `501` for `format=xml` |
+
+The client draws `/p/{token}` and `/embed/{token}`: it reads `GET /api/public/decks/{token}`
+and frames `frame` with `sandbox="allow-scripts"`. Every other page of the app keeps
+`frame-ancestors 'none'` and `X-Frame-Options: DENY`.
+
+oEmbed answers:
+
+```json
+{"version": "1.0", "type": "rich", "provider_name": "Diapo", "provider_url": "https://diapo.facile.studio",
+ "title": "Q3 review", "width": 960, "height": 540,
+ "html": "<iframe src=\"https://diapo.facile.studio/embed/<token>\" width=\"960\" height=\"540\" title=\"Q3 review\" frameborder=\"0\" allowfullscreen></iframe>"}
+```
+
+The size is 960 wide at the deck's stage ratio, shrunk to `maxwidth` and `maxheight`.
+`thumbnail_url` (`<public url>/p/<token>/thumbnail.jpg`), `thumbnail_width` (1280) and
+`thumbnail_height` appear only once the thumbnail exists.
+
+### Thumbnails
+
+Nothing renders a thumbnail yet. The storage is fixed so the capture worker only has to write a
+file: `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`, a JPEG 1280 pixels wide at the stage ratio, one
+per deck revision. The routes read the file of the deck's current `rev`: when it is there,
+`thumbnail.jpg` serves it and `og:image`, the oEmbed fields and `thumbnail` appear by themselves.
+
+## Exports
+
+`POST /decks/{id}/exports` with `{"format": "html"}` builds the file from the deck as it is now
+and answers the finished job:
+
+```json
+{"id": "...", "deck_id": "...", "rev": 3, "format": "html", "status": "done", "error": "",
+ "file_name": "Q3-review.html", "size": 48211, "created_at": "...", "download_url": "/api/exports/<id>/file"}
+```
+
+- `status` is `queued`, `running`, `done` or `failed`. Today a job is built before the answer,
+  one at a time in the process, so the answer is `done` or `failed`. A client should still read
+  `status` and poll `GET /exports/{id}`: slower formats will answer `queued`.
+- `html`: one self-contained file. `scene::compile` with every asset the deck has inlined as a
+  `data:` URI; it opens offline.
+- `pptx`: an editable PowerPoint file, written by `scene::pptx` (see below).
+- `pdf` and `mp4`: `503 unavailable`, and no job is created. They need the capture worker.
+- `GET /exports/{id}/file` is a download (`Content-Disposition: attachment`), under a `sandbox`
+  policy. An HTML export is answered as `application/octet-stream`: user HTML is never served
+  as a page of this origin.
+- A signed link, `/api/exports/{id}/file?token=<expires>.<hmac>`, works for one hour without a
+  session. It is signed with the frame key under the scope `export`, so a frame token never
+  opens an export. `diapo_export` answers such a link for the agent to hand to the person.
+- Files live in `DATA_DIR/exports/<job id>`. Jobs and files are removed after one day.
+
+### What a PPTX holds
+
+`scene::pptx::write` (crate feature `pptx`) writes Office Open XML with the `zip` crate. One
+scene is one slide, at the deck's stage ratio on a 13.333 inch wide slide.
+
+| In the scene | In the slide |
+|---|---|
+| The first heading | The title placeholder |
+| Headings, paragraphs, quotes | Paragraphs of a text box, at the theme's sizes (a stage pixel is half a point at 1920 wide) |
+| List items | Paragraphs with their nesting level, bulleted or numbered |
+| Bold, italic, inline code | Bold, italic, Courier New runs |
+| A code block | One Courier New paragraph per line |
+| A table | A table, first row as header, fills instead of borders |
+| A PNG, JPEG or GIF picture | An embedded picture, at its ratio |
+| Any other picture (SVG), or a missing file | A line naming it |
+| The presenter note | The notes page |
+| `layout: center`, `cover`, `split` | Centered text; text set at the bottom; text left, pictures and tables right |
+| `scheme: dark` | The dark colours of the `facile` theme |
+| A `raw` scene | A slide whose text box says it is animated HTML, repeated in its notes |
+| Step markers, timelines, raw HTML in a markdown scene | Dropped: a file shows every step |
+
 ## MCP
 
 `/mcp` is a `tronc::mcp::App` (Streamable HTTP, stateless). It is on when `MCP_RESOURCE` is set
@@ -202,7 +304,7 @@ verifier; the RFC 9728 metadata is at `/.well-known/oauth-protected-resource/mcp
 | `diapo_create_deck` | write | `title`, `source?`, `space_id?` | `id`, `title`, `rev`, `scenes`, `url` |
 | `diapo_write_deck` | write | `deck_id`, `source`, `rev` | `id`, `title`, `rev`, `scenes`, `url` |
 | `diapo_edit_deck` | write | `deck_id`, `old_string`, `new_string`, `rev` | `id`, `title`, `rev`, `scenes`, `url` |
-| `diapo_export` | write | `deck_id`, `format` (`html`, `pdf`, `pptx`, `mp4`) | A tool error: exports are not available yet. The output schema is final: `id`, `status`, `download_url` |
+| `diapo_export` | write | `deck_id`, `format` (`html`, `pdf`, `pptx`, `mp4`) | `id`, `status`, `download_url`, `file_name`. `download_url` is a signed link that works for one hour without signing in. `pdf` and `mp4` answer a tool error |
 | `diapo_delete_deck` | write | `deck_id` | `status` (`pending_confirmation`, `declined`, `done`), `confirm_url?`, `message` |
 
 - `url` is the page a person opens: `https://<host>/decks/<id>`, on the origin of `MCP_RESOURCE`.
