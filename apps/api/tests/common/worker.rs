@@ -62,3 +62,38 @@ where
     }
     panic!("timed out waiting for {what}");
 }
+
+fn plant(layout: &Layout, spec: &Spec, secret: &Path) {
+    let link = |target: &Path, at: PathBuf| std::os::unix::fs::symlink(target, at).unwrap();
+    match spec.kind {
+        Kind::Thumbnail => link(secret, layout.output(Kind::Thumbnail)),
+        Kind::Pdf => link(secret, layout.output(Kind::Pdf)),
+        Kind::Stills => link(secret.parent().unwrap(), layout.output(Kind::Stills)),
+    }
+}
+
+fn hostile(captures: &Path, secret: &Path) {
+    std::fs::create_dir_all(captures).unwrap();
+    std::fs::write(captures.join(HEARTBEAT), now()).unwrap();
+    let jobs: Vec<PathBuf> = std::fs::read_dir(captures).unwrap().flatten().map(|entry| entry.path()).collect();
+    for dir in jobs.into_iter().filter(|dir| dir.join("job.json").is_file() && !dir.join("status.json").exists()) {
+        let layout = Layout { dir };
+        let spec: Spec = serde_json::from_slice(&std::fs::read(layout.spec()).unwrap()).unwrap();
+        plant(&layout, &spec, secret);
+        let status = Status { state: State::Done, done: 1, total: 1, error: None, updated_at: now() };
+        std::fs::write(layout.status(), serde_json::to_vec(&status).unwrap()).unwrap();
+    }
+}
+
+/// A worker that answers every job `done` with its outputs replaced by symbolic links to
+/// `secret`, a file outside the captures directory, as a compromised browser could.
+pub fn start_hostile(app: &App, secret: PathBuf) -> tokio::task::JoinHandle<()> {
+    let captures = app.state.captures.dir().to_owned();
+    hostile(&captures, &secret);
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_millis(40)).await;
+            hostile(&captures, &secret);
+        }
+    })
+}

@@ -33,15 +33,24 @@ pub async fn recover(state: &AppState) -> Result<u64, sqlx::Error> {
     Ok(left.rows_affected())
 }
 
-/// Removes the capture job directories older than an hour: a job is collected within minutes,
+/// Removes the capture job directories, and the staged ones, older than an hour: a job is collected within minutes,
 /// so an old one was left by a restart.
 pub async fn sweep_captures(state: &AppState) {
-    let Ok(mut entries) = tokio::fs::read_dir(state.captures.dir()).await else { return };
+    for dir in [state.captures.dir(), state.captures.staging()] {
+        sweep_old(dir).await;
+    }
+}
+
+async fn sweep_old(dir: &std::path::Path) {
+    let Ok(mut entries) = tokio::fs::read_dir(dir).await else { return };
     while let Ok(Some(entry)) = entries.next_entry().await {
         let age = entry.metadata().await.ok().and_then(|meta| meta.modified().ok()).and_then(|at| at.elapsed().ok());
         let old = age.is_some_and(|age| age > Duration::from_secs(60 * 60));
-        if old && entry.file_type().await.is_ok_and(|kind| kind.is_dir()) {
+        let real = entry.file_type().await.is_ok_and(|kind| kind.is_dir());
+        if old && real {
             tokio::fs::remove_dir_all(entry.path()).await.ok();
+        } else if old && !entry.file_name().to_string_lossy().starts_with('.') {
+            tokio::fs::remove_file(entry.path()).await.ok();
         }
     }
 }
@@ -54,6 +63,9 @@ pub async fn run(state: AppState, token: CancellationToken) {
             () = token.cancelled() => return,
             _ = tick.tick() => {
                 sweep_captures(&state).await;
+                if let Err(error) = super::leftovers::sweep(&state.pool, &state.data_dir).await {
+                    tracing::error!(%error, "exports: the sweep of leftover files failed");
+                }
                 match purge(&state).await {
                     Ok(0) => {}
                     Ok(count) => tracing::info!(count, "exports: removed old exports"),

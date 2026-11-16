@@ -8,8 +8,9 @@ use std::time::Duration;
 use capture::job::{Kind, State};
 use uuid::Uuid;
 
-use super::Ask;
+use super::{Ask, safe};
 use crate::modules::decks::service::fetch;
+use crate::modules::public::info::is_shared;
 use crate::modules::public::thumbnail;
 use crate::state::AppState;
 
@@ -32,11 +33,13 @@ impl Default for Thumbs {
     }
 }
 
-/// Captures the thumbnail of the revision `deck` is at, unless it has one, the deck is in the
-/// trash or the worker is down. Answers whether a file was written.
+/// Captures the thumbnail of the revision `deck` is at, unless it has one, it is not shared, it
+/// is in the trash or the worker is down: only a share link shows a thumbnail. Answers whether
+/// a file was written.
 pub async fn make(state: &AppState, deck: Uuid) -> bool {
     let Ok(row) = fetch(state, deck).await else { return false };
     let wanted = row.trashed_at.is_none() && !thumbnail::exists(state, deck, row.rev).await;
+    let wanted = wanted && is_shared(state, deck).await;
     if !wanted || !state.captures.alive().await {
         return false;
     }
@@ -52,7 +55,8 @@ async fn keep(state: &AppState, job: &str, deck: Uuid, rev: i64) -> std::io::Res
     let folder = target.parent().unwrap_or(&state.data_dir).to_owned();
     tokio::fs::create_dir_all(&folder).await?;
     let partial = folder.join(format!(".{rev}.tmp"));
-    tokio::fs::copy(state.captures.layout(job).output(Kind::Thumbnail), &partial).await?;
+    let picture = state.captures.read(&state.captures.layout(job).output(Kind::Thumbnail), safe::PICTURE).await?;
+    tokio::fs::write(&partial, picture).await?;
     tokio::fs::rename(&partial, &target).await?;
     let mut others = tokio::fs::read_dir(&folder).await?;
     while let Some(entry) = others.next_entry().await? {
