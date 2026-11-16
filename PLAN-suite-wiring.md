@@ -79,7 +79,9 @@ Go live, in this order, once each app's `main` passes its gate and is tagged:
 9. Journal: per-app keys and both collector names in `COLLECT_SDK_APPS`
    (wiki `projects/journal`, 2026-11-15). Verify: one log line per event, not two.
 10. Sonde: a monitor per app on `/health` and one on `/version`. Verify: `sonde` lists them.
-11. Suite site: add both to `APPS` in `Suite/src/lib/content.ts` (category `productivity`),
+11. Suite site: add both to `APPS` in `Suite/src/lib/content.ts` (category `productivity`, icons `solar:presentation-graph-bold-duotone` for Diapo and
+    `solar:clapperboard-open-bold-duotone` for Clap; the same two glyphs go in Bulle's
+    `apps/client/src/lib/suite-icons.ts` in step 3),
     register glyphs through `scripts/gen-icons.ts`. Verify: Suite gate, then the live wall.
 12. `facile` installer catalog: entries for the `diapo` and `clap` CLIs with their `auth:`
     blocks, after each repo's release workflow has published archives.

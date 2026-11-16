@@ -107,6 +107,8 @@ The format lives in one crate, `crates/scene` in this repo, package name `facile
 Clap depends on it by git tag. Features: default (parse, validate, compile to HTML), `capture`
 (drive `chrome-headless-shell` over CDP: screenshot a scene at a time or step, print PDF),
 `pptx` (write editable OOXML from the markdown tree, image fallback for `raw` scenes).
+- Logo (owner, 2026-11-16): the Solar glyph `solar:presentation-graph-bold-duotone`, used for the
+  app mark, favicon, landing, Suite wall and Bulle's suite icons.
 
 ## Approach
 
