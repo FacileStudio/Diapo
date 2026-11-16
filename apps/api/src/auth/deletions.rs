@@ -1,31 +1,43 @@
+use std::path::PathBuf;
+
 use porte::directory::{DirectoryError, PersonDeleted, StateStore};
 use sqlx::{PgConnection, PgPool};
 use tronc::mcp::erase_pending;
+use uuid::Uuid;
 
-/// The app's half of a GDPR erase: personal decks, pending agent actions, memberships, then the
-/// account row.
+use crate::modules::exports::leftovers;
+
+/// The app's half of a GDPR erase: personal decks with their exports and thumbnails, the
+/// person's other exports, pending agent actions, memberships, then the account row.
 #[derive(Clone)]
 pub struct AppData {
     pool: PgPool,
+    data_dir: PathBuf,
 }
 
 impl AppData {
-    /// An eraser over `pool`.
-    pub fn new(pool: PgPool) -> Self {
-        AppData { pool }
+    /// An eraser over `pool`, removing files under `data_dir`.
+    pub fn new(pool: PgPool, data_dir: PathBuf) -> Self {
+        AppData { pool, data_dir }
     }
 }
+
+/// What an erase removed, whose files go once it is committed.
+type Erased = (Vec<Uuid>, Vec<Uuid>);
 
 fn failed(error: sqlx::Error) -> DirectoryError {
     DirectoryError::Failed(error.to_string())
 }
 
-async fn erase(tx: &mut PgConnection, users: &[i64], subject: &str) -> Result<(), DirectoryError> {
-    sqlx::query("DELETE FROM decks WHERE space_id IS NULL AND owner_id = ANY($1)")
+async fn erase(tx: &mut PgConnection, users: &[i64], subject: &str) -> Result<Erased, DirectoryError> {
+    let decks: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM decks WHERE space_id IS NULL AND owner_id = ANY($1)")
         .bind(users)
-        .execute(&mut *tx)
+        .fetch_all(&mut *tx)
         .await
         .map_err(failed)?;
+    let exports = leftovers::exports_of(&mut *tx, &decks, users).await.map_err(failed)?;
+    sqlx::query("DELETE FROM exports WHERE id = ANY($1)").bind(&exports).execute(&mut *tx).await.map_err(failed)?;
+    sqlx::query("DELETE FROM decks WHERE id = ANY($1)").bind(&decks).execute(&mut *tx).await.map_err(failed)?;
     let names: Vec<String> = users.iter().map(i64::to_string).collect();
     erase_pending(&mut *tx, &names).await.map_err(|error| DirectoryError::Failed(error.to_string()))?;
     sqlx::query("DELETE FROM space_members WHERE subject = $1")
@@ -34,7 +46,7 @@ async fn erase(tx: &mut PgConnection, users: &[i64], subject: &str) -> Result<()
         .await
         .map_err(failed)?;
     sqlx::query("DELETE FROM porte_users WHERE id = ANY($1)").bind(users).execute(&mut *tx).await.map_err(failed)?;
-    Ok(())
+    Ok((decks, exports))
 }
 
 #[async_trait::async_trait]
@@ -48,8 +60,10 @@ impl PersonDeleted for AppData {
                 .fetch_all(&mut *tx)
                 .await
                 .map_err(failed)?;
-        erase(&mut tx, &users, subject).await?;
-        tx.commit().await.map_err(failed)
+        let (decks, exports) = erase(&mut tx, &users, subject).await?;
+        tx.commit().await.map_err(failed)?;
+        leftovers::forget(&self.data_dir, &decks, &exports).await;
+        Ok(())
     }
 }
 

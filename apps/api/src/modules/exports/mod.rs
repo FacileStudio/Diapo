@@ -6,6 +6,8 @@ pub mod build;
 pub mod clap;
 mod download;
 pub mod formats;
+pub mod inline;
+pub mod leftovers;
 pub mod purge;
 mod router;
 pub mod service;
