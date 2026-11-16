@@ -37,6 +37,11 @@ All notable changes to Diapo. Versions follow SemVer.
   Favicons, the link preview image and the web manifest come from muse's brand generator. The
   Vision tracker loads on the two public pages as a pinned same-origin copy.
 - Language is now picked on the settings page (muse v0.30.0 slimmed the user menu).
+- The share dialog in the editor: create the link (shown once, with its embed code), generate a
+  new one, turn it off. The public pages `/p/{token}` and `/embed/{token}` draw the shared deck
+  without a session and call only `/api/public`; a dead link gets its own page.
+- The export dialog in the editor: PowerPoint and HTML. A format the API answers `503` for is
+  shown as coming soon, and is asked again until it works.
 - The app mark is the Solar `presentation-graph-bold-duotone` glyph.
 - Share links: `POST`, `GET` and `DELETE /api/decks/{id}/share`. One live link per deck; the
   token is shown once and stored only as its SHA-256.
