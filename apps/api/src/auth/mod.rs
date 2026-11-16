@@ -1,15 +1,26 @@
-//! porte wiring: sessions and Registre sign-in.
+//! porte wiring: sessions, Registre sign-in, directory sync, deletions and MCP auth.
 
+mod deletions;
 mod picture;
+mod retire;
 mod routes;
+mod spaces;
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use porte::directory::{self, Deletions, Syncer};
+use porte::exchange::{self, Exchanger};
+use porte::http_client::HttpClient;
 use porte::oidc::{self, Kit};
-use porte::pg;
 use porte::session::{self, Manager};
+use porte::{mcpauth, pg};
 use sqlx::PgPool;
 
+pub use deletions::{AppData, DeletionState};
 pub use picture::Pictures;
 pub use routes::routes;
+pub use spaces::SpacesApply;
 
 use crate::env::Config;
 
@@ -20,6 +31,14 @@ pub struct Kits {
     pub sessions: Manager,
     /// Registre sign-in routes.
     pub oidc: Kit,
+    /// The directory loop, when Registre is configured.
+    pub syncer: Option<Syncer>,
+    /// The deletion loop and receiver, when Registre is configured.
+    pub deletions: Option<Deletions>,
+    /// The MCP token verifier, when `MCP_RESOURCE` is set.
+    pub mcp: Option<Arc<mcpauth::Verifier>>,
+    /// Token exchange to other suite apps, when Registre is configured.
+    pub exchanger: Option<Exchanger>,
 }
 
 type BootError = Box<dyn std::error::Error + Send + Sync>;
@@ -39,6 +58,45 @@ impl Kits {
             now: None,
         };
         let oidc = Kit::new(&cfg.porte, deps).await?;
-        Ok(Kits { sessions, oidc })
+        let mut kits = Kits { sessions, oidc, syncer: None, deletions: None, mcp: None, exchanger: None };
+        if cfg.porte.enabled() {
+            kits.exchanger = Some(Exchanger::new(exchange::Config::from_porte(&cfg.porte, store.identities()))?);
+            kits.directory(cfg, pool, store.clone());
+        }
+        if !cfg.mcp_resource.is_empty() {
+            kits.mcp = Some(Arc::new(mcp_verifier(cfg, &store, &kits.oidc).await?));
+        }
+        Ok(kits)
     }
+
+    fn directory(&mut self, cfg: &Config, pool: &PgPool, store: pg::Store) {
+        let client = directory::Client {
+            issuer: cfg.porte.issuer.clone(),
+            client_id: cfg.porte.client_id.clone(),
+            client_secret: cfg.porte.client_secret.clone(),
+            http: HttpClient::new(),
+        };
+        let apply = Arc::new(SpacesApply::new(pool.clone()));
+        self.syncer = Some(Syncer::new(client.clone(), apply, Duration::ZERO));
+        let data = Arc::new(AppData::new(pool.clone()));
+        let state = Arc::new(DeletionState::new(pool.clone()));
+        let deletions = Deletions::new(client, data, Some(Arc::new(store.clone())), Some(state), Duration::ZERO)
+            .with_holds(Arc::new(store));
+        self.oidc = self.oidc.clone().with_erased(Arc::new(deletions.clone()));
+        self.deletions = Some(deletions);
+    }
+}
+
+async fn mcp_verifier(cfg: &Config, store: &pg::Store, oidc: &Kit) -> Result<mcpauth::Verifier, BootError> {
+    let config = mcpauth::Config {
+        issuer: cfg.porte.issuer.clone(),
+        resource: cfg.mcp_resource.clone(),
+        scope_prefix: "diapo".to_owned(),
+        audience: cfg.porte.client_id.clone(),
+        identities: store.identities(),
+        provision: true,
+        accounts: Some(oidc.clone()),
+        http: HttpClient::new(),
+    };
+    Ok(mcpauth::Verifier::new(config).await?)
 }

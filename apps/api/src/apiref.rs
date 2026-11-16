@@ -18,12 +18,34 @@ const ROUTES: &[Row] = &[
     ("POST", "/auth/backchannel-logout", "auth", "Registre's back-channel logout", "200"),
     ("POST", "/auth/logout", "auth", "Ends the session", "200"),
     ("GET", "/auth/me", "auth", "The signed-in person, or 401", "200"),
-    ("GET", "/auth/session", "auth", "The signed-in person, or {\"user\": null}", "200"),
+    ("GET", "/auth/session", "auth", "The signed-in person, or {\"user\": null}, and bulle_url", "200"),
+    ("POST", "/registre/sync", "registre", "Registre's directory nudge", "202"),
+    ("POST", "/registre/deletions", "registre", "Registre's signed account deletion", "202"),
+    ("GET", "/spaces", "spaces", "The caller's spaces and roles", "200"),
+    ("GET", "/decks", "decks", "The decks the caller reaches, newest first (?space_id=&trashed=)", "200"),
+    ("POST", "/decks", "decks", "Creates a deck from a source; 422 lists each invalid line", "201"),
+    ("GET", "/decks/{id}", "decks", "One deck: metadata, source and rev", "200"),
+    ("PATCH", "/decks/{id}", "decks", "Sets the title, the space or the trash", "200"),
+    ("DELETE", "/decks/{id}", "decks", "Deletes a trashed deck for good", "204"),
+    ("PUT", "/decks/{id}/source", "decks", "Saves {source, rev}; 409 on a stale rev, 422 on an invalid source", "200"),
+    ("GET", "/decks/{id}/events", "decks", "Server-sent events: changed {rev}", "200"),
+    ("GET", "/decks/{id}/frame", "frame", "The compiled HTML, sandboxed (?scene=n, from 0)", "200"),
+    ("GET", "/decks/{id}/assets", "assets", "The assets of a deck", "200"),
+    ("POST", "/decks/{id}/assets", "assets", "Uploads an asset (multipart `file`, optional `name`)", "201"),
+    ("GET", "/decks/{id}/assets/{name}", "assets", "Serves an asset to a session or a frame link (?frame=)", "200"),
+    ("DELETE", "/decks/{id}/assets/{name}", "assets", "Deletes an asset", "204"),
+    ("GET", "/assistant", "assistant", "The caller's Bulle assistant name and accent", "200"),
+    ("GET", "/mcp/pending", "mcp", "The person's pending agent actions, own browser session only", "200"),
+    ("POST", "/mcp/pending/{id}/confirm", "mcp", "Confirms and runs a pending agent action", "200"),
+    ("POST", "/mcp/pending/{id}/dismiss", "mcp", "Dismisses a pending agent action", "200"),
 ];
 
 fn method(name: &str) -> HttpMethod {
     match name {
         "POST" => HttpMethod::Post,
+        "PUT" => HttpMethod::Put,
+        "PATCH" => HttpMethod::Patch,
+        "DELETE" => HttpMethod::Delete,
         _ => HttpMethod::Get,
     }
 }
