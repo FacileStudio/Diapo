@@ -4,9 +4,42 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="color-scheme" content="light dark" />
-		<title>Diapo</title>
-		<meta name="description" content="Slides written as one text file, edited on the web, by agents and from the terminal." />
+		<title>Diapo · Write your slides. Diapo lays them out.</title>
+		<meta name="description" content="Type your ideas like a note: each block becomes a slide you present from your browser. Free to start." />
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="icon" href="/favicon.ico" sizes="48x48" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="manifest" href="/site.webmanifest" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Facile" />
+		<meta property="og:locale" content="en_US" />
+		<meta property="og:url" content="https://diapo.facile.studio/" />
+		<meta property="og:title" content="Diapo · Write your slides. Diapo lays them out." />
+		<meta property="og:description" content="Type your ideas like a note: each block becomes a slide you present from your browser. Free to start." />
+		<meta property="og:image" content="https://diapo.facile.studio/og-image.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Diapo: Write your slides. Diapo lays them out." />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Diapo · Write your slides. Diapo lays them out." />
+		<meta name="twitter:description" content="Type your ideas like a note: each block becomes a slide you present from your browser. Free to start." />
+		<meta name="twitter:image" content="https://diapo.facile.studio/og-image.png" />
+		<script>
+			/*
+			 * Vision counts visits to the public pages only. The tracker is a pinned copy served
+			 * from this origin, so no script from another origin runs in the app.
+			 */
+			(function () {
+				var p = location.pathname;
+				if (location.hostname !== 'diapo.facile.studio' || (p !== '/' && p !== '/downloads')) return;
+				var s = document.createElement('script');
+				s.async = true;
+				s.src = '/vision-tracker.js';
+				document.head.appendChild(s);
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
