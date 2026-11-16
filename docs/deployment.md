@@ -39,7 +39,13 @@ through `scripts/version.sh`, and the build fails when it cannot be read), and c
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | The Registre client |
 | `OIDC_REDIRECT_URL`, `OIDC_SUCCESS_URL` | `https://<host>/api/auth/oidc/callback` and `https://<host>/` |
 | `OIDC_CLI_AUDIENCE` | Lets `facile-cli` device tokens sign in |
-| `PORTE_TOKEN_KEY` | Seals the stored OIDC tokens |
+| `PORTE_TOKEN_KEY` | Seals the stored OIDC tokens. The key of the frame's asset links is derived from it |
+| `DATA_DIR` | Where assets are stored, `/data` |
+| `MCP_RESOURCE` | `https://<host>/mcp`. Turns `/mcp` on; unset, the route does not exist |
+| `MCP_STATE_KEY` | Signs the MCP confirmation state. Required with `MCP_RESOURCE` |
+| `BULLE_URL`, `BULLE_CLIENT_ID` | The Bulle origin (default `https://bulle.facile.studio`) and its Registre client id (default `bulle`) |
+| `SOURCE_MAX_BYTES` | The largest deck source, 512 KiB |
+| `ASSET_MAX_BYTES`, `DECK_ASSETS_MAX_BYTES` | The largest asset (25 MiB) and the most one deck holds (200 MiB) |
 | `JOURNAL_URL`, `JOURNAL_TOKEN` | Ships logs to Journal |
 | `TRUSTED_PROXIES`, `LOG_LEVEL` | tronc's chassis variables |
 
@@ -48,7 +54,10 @@ whole block.
 
 ## Migrations
 
-Migrations run at boot, behind sqlx's lock. `0001_porte.sql` is porte's schema verbatim.
+Migrations run at boot, behind sqlx's lock. `0001_porte.sql` is porte's schema verbatim,
+`0002_diapo.sql` holds the spaces mirrored from Registre, the decks, their revisions and their
+assets, and `0003_mcp_actions.sql` is tronc's pending-action table verbatim. Files are
+append-only: never edit one that shipped.
 
 ## Health
 
@@ -57,7 +66,9 @@ Migrations run at boot, behind sqlx's lock. `0001_porte.sql` is porte's schema v
 
 ## One replica
 
-`docker-compose.yml` pins `deploy.replicas: 1`. Keep it until the plan says otherwise.
+`docker-compose.yml` pins `deploy.replicas: 1`. Keep it until the plan says otherwise: the
+`changed` events of `GET /api/decks/{id}/events` are broadcast inside the process, and the
+directory, deletion, purge and sweep loops must run once.
 
 ## Bumping a library
 

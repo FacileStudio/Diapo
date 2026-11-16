@@ -27,7 +27,9 @@ mise run dev
 ```
 
 The API listens on `:4000` with no Registre: sign-in routes answer `oidc_enabled: false`. The
-client's `bun run dev` (in `apps/client`) proxies `/api` to it.
+client's `bun run dev` (in `apps/client`) proxies `/api` to it. Assets go under `DATA_DIR`,
+which the task sets to `.local/data` (ignored by git). `/mcp` is off until
+`MCP_RESOURCE` and `MCP_STATE_KEY` are set. The routes are in [api.md](api.md).
 
 ## The workspace
 
@@ -51,6 +53,13 @@ cargo test --workspace --locked
 | `crates/scene/tests/compile.rs` | The compiled document, asset rewriting, the banned runtime calls |
 | `crates/scene/tests/golden.rs` | Each fixture in `crates/scene/fixtures/` against its golden file |
 | `apps/api/tests/shell.rs` | Probes, `/version`, sessions and the API reference, on a real Postgres |
+| `apps/api/tests/decks.rs` | Create, read, list, the `rev` rule (`409`), invalid sources (`422`), revisions, the trash |
+| `apps/api/tests/authorization.rs` | Every deck route against every role, cross-space `404`, the CSRF header |
+| `apps/api/tests/frame.rs` | The frame's policy and missing cookie, signed asset links, ranges, SVG |
+| `apps/api/tests/assets.rs` | Sniffing, names (traversal refused), caps, the sweep |
+| `apps/api/tests/events.rs` | The server-sent `changed` stream |
+| `apps/api/tests/directory.rs` | The directory snapshot, retired spaces, account erasure |
+| `apps/api/tests/mcp.rs`, `mcp_tools.rs` | tronc's `mcptest` conformance, the eight tools, scope gates, the delete confirmation |
 | `apps/client/src/**/*.test.ts` | The client's unit tests (vitest, jsdom) |
 
 Without `TEST_DATABASE_URL` the database tests print a skip banner and pass: read the output.
