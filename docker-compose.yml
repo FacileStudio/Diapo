@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: diapo
-      POSTGRES_PASSWORD: diapo-internal-db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-diapo-internal-db}
       POSTGRES_DB: diapo
     volumes:
     - db_data:/var/lib/postgresql/data
@@ -52,7 +52,7 @@ services:
       traefik.http.routers.diapo-secure.service: diapo-api
       traefik.http.services.diapo-api.loadbalancer.server.port: "4000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://diapo:diapo-internal-db@diapo-db:5432/diapo?sslmode=disable}
+      DATABASE_URL: ${DATABASE_URL:-postgres://diapo:${POSTGRES_PASSWORD:-diapo-internal-db}@diapo-db:5432/diapo?sslmode=disable}
       PORT: '4000'
       APP_ENV: ${APP_ENV:-production}
       LOG_LEVEL: ${LOG_LEVEL:-info}

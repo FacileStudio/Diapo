@@ -34,6 +34,7 @@ through `scripts/version.sh`, and the build fails when it cannot be read), and c
 | Variable | Meaning |
 |---|---|
 | `DATABASE_URL` | Postgres. Compose defaults it to the `diapo-db` service |
+| `POSTGRES_PASSWORD` | The password of the `diapo-db` role, used by both services. Set it before the first deploy: Postgres reads it only when it creates the volume |
 | `PORT` | Listen port, `4000` |
 | `APP_ENV` | `production` refuses to boot without `OIDC_ISSUER` and `PORTE_TOKEN_KEY` |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | The Registre client |
