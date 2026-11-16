@@ -68,7 +68,7 @@
 </script>
 
 <header class="flex flex-wrap items-center gap-x-2 gap-y-1">
-	<Button variant="ghost" size="sm" icon={icons.chevronLeft} href="/" aria-label={t('decks.title')}>
+	<Button variant="ghost" size="sm" class="h-11" icon={icons.chevronLeft} href="/" aria-label={t('decks.title')}>
 		<span class="hidden sm:inline">{t('decks.title')}</span>
 	</Button>
 	<input

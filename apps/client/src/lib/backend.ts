@@ -136,7 +136,7 @@ export const backend = {
 	logout: () => request<unknown>('/auth/logout', send('POST')),
 	decks: () => request<DeckSummary[]>('/decks'),
 	trashed: () => request<DeckSummary[]>('/decks?trashed=true'),
-	create: (title: string) => request<Deck>('/decks', send('POST', { title })),
+	create: (title: string, source?: string) => request<Deck>('/decks', send('POST', { title, source })),
 	deck: (id: string) => request<Deck>(deck(id)),
 	save: (id: string, source: string, rev: number) =>
 		request<{ rev: number }>(deck(id, '/source'), send('PUT', { source, rev })),

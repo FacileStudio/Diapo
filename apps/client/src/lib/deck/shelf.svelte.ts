@@ -1,5 +1,6 @@
-import { backend } from '$lib/backend';
+import { ApiError, backend } from '$lib/backend';
 import type { DeckSummary } from '$lib/types';
+import { starterSource } from './templates';
 
 /** The decks of the signed-in person, newest first, or their trash, and the writes the list pages make. */
 export class Shelf {
@@ -19,8 +20,14 @@ export class Shelf {
 		this.ready = true;
 	}
 
-	create(title: string): Promise<DeckSummary> {
-		return backend.create(title);
+	/** Creates a deck with the starter source in the person's language; the API's own starter if it refuses ours. */
+	async create(title: string): Promise<DeckSummary> {
+		try {
+			return await backend.create(title, starterSource(title));
+		} catch (error) {
+			if (!(error instanceof ApiError) || error.status !== 422) throw error;
+			return backend.create(title);
+		}
 	}
 
 	async rename(id: string, title: string): Promise<void> {
