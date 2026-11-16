@@ -71,6 +71,8 @@ services:
       MCP_STATE_KEY: ${MCP_STATE_KEY:-}
       BULLE_URL: ${BULLE_URL:-}
       BULLE_CLIENT_ID: ${BULLE_CLIENT_ID:-bulle}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      EMBED_ANCESTORS: ${EMBED_ANCESTORS:-https://prisme.facile.studio}
     healthcheck:
       test: ["CMD", "/api", "healthcheck"]
       interval: 30s
