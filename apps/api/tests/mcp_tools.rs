@@ -57,7 +57,7 @@ async fn an_agent_creates_reads_edits_and_rewrites_a_deck_under_the_rev_rule() {
 }
 
 #[tokio::test]
-async fn an_agent_lists_reads_the_guide_and_is_told_exports_are_not_there_yet() {
+async fn an_agent_lists_decks_and_reads_the_guide() {
     let Some(served) = served("diapo_mcp_reads").await else { return };
     let client = client(&served, "diapo.read,diapo.write").await;
     let id = created(&served, &client).await;
@@ -72,12 +72,6 @@ async fn an_agent_lists_reads_the_guide_and_is_told_exports_are_not_there_yet() 
     assert_eq!(refused(&client, "diapo_write_deck", write).await, hidden);
     let guide: Value = decode(&call(&client, "diapo_format_guide", args(json!({}))).await);
     assert_eq!(guide["guide"], json!(scene::FORMAT_GUIDE));
-    for format in ["html", "pdf", "pptx", "mp4"] {
-        let message = refused(&client, "diapo_export", json!({"deck_id": id, "format": format})).await;
-        assert!(message.contains("not available yet"), "{message}");
-    }
-    let unknown = call(&client, "diapo_export", args(json!({"deck_id": id, "format": "gif"}))).await;
-    assert_eq!(unknown.is_error, Some(true));
 }
 
 #[tokio::test]
@@ -122,4 +116,34 @@ async fn a_delete_waits_for_the_person_and_only_their_browser_session_confirms()
     assert_eq!(done.json(), json!({"status": "done"}), "{}", done.text());
     assert!(live().await.json()["trashed_at"].is_string());
     assert!(refused(&client, "diapo_delete_deck", json!({"deck_id": id})).await.contains("already in the trash"));
+}
+
+#[tokio::test]
+async fn an_agent_exports_html_and_pptx_to_a_signed_link_and_is_told_pdf_and_mp4_wait() {
+    let Some(served) = served("diapo_mcp_export").await else { return };
+    let client = client(&served, "diapo.read,diapo.write").await;
+    let id = created(&served, &client).await;
+    let stranger = served.app.person("stranger").await;
+    let theirs = common::fixture::id(&common::fixture::deck(&served.app, &stranger, None, SOURCE).await);
+    let hidden = "Deck not found. diapo_list_decks lists deck ids.";
+    for format in ["pdf", "mp4"] {
+        let message = refused(&client, "diapo_export", json!({"deck_id": id, "format": format})).await;
+        assert!(message.contains("not available yet"), "{message}");
+    }
+    for (format, magic) in [("html", &b"<!doctype html>"[..]), ("pptx", b"PK")] {
+        let made: Value = decode(&call(&client, "diapo_export", args(json!({"deck_id": id, "format": format}))).await);
+        assert_eq!(
+            (made["status"].clone(), made["file_name"].clone()),
+            (json!("done"), json!(format!("Plan.{format}")))
+        );
+        let link = made["download_url"].as_str().unwrap();
+        let origin = served.url.trim_end_matches("/mcp");
+        assert!(link.starts_with(&format!("{origin}/api/exports/")) && link.contains("/file?token="), "{link}");
+        let file = served.app.call("GET", link.trim_start_matches(origin), None, None).await;
+        assert!(file.status == 200 && file.bytes.starts_with(magic), "{format}: {}", file.status);
+    }
+    let theirs_export = refused(&client, "diapo_export", json!({"deck_id": theirs, "format": "html"})).await;
+    assert_eq!(theirs_export, hidden);
+    let unknown = call(&client, "diapo_export", args(json!({"deck_id": id, "format": "gif"}))).await;
+    assert_eq!(unknown.is_error, Some(true));
 }
