@@ -180,7 +180,7 @@ through `scene::Assets` to:
 - `<hmac>` is HMAC-SHA256 over `{deck id}:{expires}`, hex. The key is derived from
   `PORTE_TOKEN_KEY` under the label `diapo/frame-assets/v1`, so links survive a restart and a
   rolling deploy. Without `PORTE_TOKEN_KEY` (local development) the key is random per process.
-- A token reads the assets of **one deck**, for **one hour** (`modules::frame::TTL`), and
+- A token reads the assets of **one deck**, for **ten minutes** (`modules::frame::TTL`), and
   nothing else: not the source, not another deck, no write. It is issued only to a caller who
   could read the deck at that moment.
 - `GET /decks/{id}/assets/{name}` accepts a valid token instead of a session. A token that is
@@ -190,9 +190,10 @@ through `scene::Assets` to:
 - An asset the deck does not have keeps its path as written and fails to load in the frame.
 - Only references in the source are signed (attributes, `srcset`, CSS `url()`). A script that
   builds an asset URL at run time gets an unsigned path, which does not load.
-- The frame is `no-store` and the client reloads it on every `changed` event, so links are
-  renewed long before they expire. A frame left open for more than an hour must be reloaded
-  before it can load an asset it has not loaded yet.
+- The frame is `no-store` and the client reloads it on every `changed` event, which signs the
+  links again. The short life means a person removed from a space stops reading its assets
+  within ten minutes. A frame left open longer must be reloaded before it can load an asset,
+  or a new range of a video, it has not loaded yet.
 
 ## Share links
 
@@ -208,7 +209,9 @@ gone for good, and a trashed deck cannot be shared.
 ### Public routes
 
 No session, no cookie (a layer removes any `Set-Cookie`), 5 requests a second per client with a
-burst of 60. Every one answers `404` for a token that is unknown, revoked, or on a trashed deck.
+burst of 60, and 30 a second with a burst of 300 on the assets route, which a frame calls once
+per picture. The thumbnail is `Cache-Control: private, max-age=60`, so a revoked link stops
+showing it within a minute. Every one answers `404` for a token that is unknown, revoked, or on a trashed deck.
 None answers the source, a presenter note, the deck id or the space.
 
 | Route | Answers |
@@ -239,8 +242,9 @@ The size is 960 wide at the deck's stage ratio, shrunk to `maxwidth` and `maxhei
 
 ### Thumbnails
 
-After a deck is created, saved or shared, the capture service makes the thumbnail of its new
-revision: `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`, a JPEG 1280 pixels wide at the stage ratio.
+Only a shared deck has a thumbnail: the share page, oEmbed and `og:image` are the only places
+it shows. When a deck is shared, and after each save of a shared deck, the capture service makes
+the thumbnail of its new revision: `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`, a JPEG 1280 pixels wide at the stage ratio.
 Saves within three seconds are captured once, one job per deck is in flight, and the newest
 revision wins: once its file is in place the older ones are removed. The routes read the file
 of the deck's current `rev`: when it is there, `thumbnail.jpg` serves it and `og:image`, the
@@ -259,8 +263,14 @@ slower one as it is. Read it again with `GET /exports/{id}` until `status` is `d
  "created_at": "...", "download_url": null}
 ```
 
-- `status` is `queued`, `running`, `done` or `failed`. Jobs run one at a time. `done` and `total`
-  count pages or frames; both are 0 while unknown. `download_url` appears with `done`.
+- `status` is `queued`, `running`, `done` or `failed`. `done` and `total` count pages or frames;
+  both are 0 while unknown. `download_url` appears with `done`.
+- Jobs run in two lanes, one job at a time in each: MP4, which waits on Clap for as long as a
+  render takes, and every other format. A person has one export under way at a time: asking
+  again for the same deck and format answers that job; asking for anything else is `429
+  rate_limited` until it is over.
+- An HTML or PPTX file larger than 300 MiB is refused with `413` before it is built: an HTML
+  export holds each asset once per place the source names it.
 - `html`: one self-contained file. `scene::compile` with every asset the deck has inlined as a
   `data:` URI; it opens offline.
 - `pptx`: an editable PowerPoint file, written by `scene::pptx` (see below). The pictures of its
@@ -282,8 +292,10 @@ slower one as it is. Read it again with `GET /exports/{id}` until `status` is `d
 - A signed link, `/api/exports/{id}/file?token=<expires>.<hmac>`, works for one hour without a
   session. It is signed with the frame key under the scope `export`, so a frame token never
   opens an export. `diapo_export` answers such a link for the agent to hand to the person.
-- Files live in `DATA_DIR/exports/<job id>`. Jobs and files are removed after one day. A job
-  left `queued` or `running` by a restart is marked `failed` at boot.
+- Files live in `DATA_DIR/exports/<job id>`. Jobs and files are removed after one day, at once
+  when their deck is deleted for good or the person who asked is erased, and an hourly sweep
+  removes any file no job names. A job left `queued` or `running` by a restart is marked
+  `failed` at boot.
 
 `GET /exports/formats` says what an export would do now, and starts no job. A client reads it
 when it opens its export dialog instead of trying each format:
@@ -300,8 +312,8 @@ when it opens its export dialog instead of trying each format:
 `pdf` is available while the capture worker's heartbeat is fresh. `mp4` is available while
 `CLAP_URL` is set, Registre is configured and Clap's `/health` answers within two seconds.
 `pptx` is always available; its `notes` are `raw scenes as pictures` or `raw scenes as
-placeholders`, depending on the worker. The answer is advice: `POST` still checks, and still
-answers `503`.
+placeholders`, depending on the worker. One answer serves every caller for 30 seconds. It is
+advice: `POST` still checks, and still answers `503`.
 
 ### What a PPTX holds
 

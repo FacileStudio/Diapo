@@ -15,12 +15,18 @@ directory per job, named by the job id (1 to 64 letters, digits, `-` and `_`).
 
 | Path | Written by | Meaning |
 |---|---|---|
-| `<id>/bundle/` | API | `index.html`, the whole deck compiled by `scene::compile`, and each asset at the relative path the source writes. Written first |
-| `<id>/job.json` | API | Queues the job. Written last, under a temporary name, then renamed |
+| `<id>/bundle/` | API | `index.html`, the whole deck compiled by `scene::compile`, and each asset at the relative path the source writes |
+| `<id>/job.json` | API | Queues the job |
 | `<id>/cancel` | API | Any file with this name asks the worker to stop |
 | `<id>/status.json` | worker | Where the job is. Rewritten atomically, twice a second while it runs |
 | `<id>/thumbnail.jpg`, `out.pdf`, `stills/<n>.png` | worker | The output, renamed into place once whole |
 | `.worker` | worker | The heartbeat: an RFC 3339 timestamp, rewritten every half second |
+
+The API builds the whole job directory, bundle and `job.json`, in `DATA_DIR/staging/<id>`, which
+the worker cannot see, then renames it to `captures/<id>` in one step. The worker never sees half
+a job, and the API never writes into a tree the worker could have changed. Assets are copied,
+not hard-linked: a hard link would hand the worker, which runs as the same uid, write access to
+the asset store.
 
 `job.json`:
 
@@ -119,6 +125,22 @@ The subpath mount needs Docker Engine 26 or newer, and `captures` must exist in 
 before the container is created: the one-shot `diapo-data-owner` creates it, and so does the API
 at boot.
 
+## What the API trusts
+
+Nothing the worker writes. The browser in it loads HTML users wrote, so a compromised renderer
+is the case the design plans for. The API reads `status.json`, the heartbeat and every output
+through `captures::safe`:
+
+- the file is opened with `O_NOFOLLOW` and `O_NONBLOCK`, so a link or a FIFO in its place fails;
+- it must be a regular file within a cap: 64 KiB for a status or the heartbeat, 64 MiB for a
+  still or a thumbnail, 300 MiB for a PDF;
+- once open, the path the kernel resolved must be inside the captures directory, so a link in
+  a parent (`stills` pointing at `/proc/self`) is refused too.
+
+A `cancel` file is created new, only when the job directory is still a real one. Job directories
+are removed with `remove_dir_all`, which removes a link and does not follow it. Tests plant links
+for every output (`apps/api/tests/hostile.rs`).
+
 ## When the service is down
 
 The API reads the heartbeat before it asks for anything.
@@ -128,7 +150,7 @@ The API reads the heartbeat before it asks for anything.
 | HTML export | Works |
 | PPTX export | Works. Animated (`raw`) slides are placeholders and the job's `notice` says so |
 | PDF export | `503 unavailable`, no job |
-| Thumbnails | Not made. `/p/{token}/thumbnail.jpg` answers `404`, `og:image` and the oEmbed thumbnail fields are left out. The next save tries again |
+| Thumbnails | Not made (they are made for shared decks only). `/p/{token}/thumbnail.jpg` answers `404`, `og:image` and the oEmbed thumbnail fields are left out. The next save tries again |
 | MP4 export | Unaffected: it goes to Clap |
 
 ## What Clap would need to export

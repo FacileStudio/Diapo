@@ -4,6 +4,47 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+### Added
+
+- The capture service: `crates/capture` (the job files, and a DevTools Protocol pipe client
+  that makes thumbnails, stills and PDFs from a compiled deck) and `apps/worker`, run as the
+  `diapo-render` service with no network, a read-only root, no capability and Chrome's sandbox
+  on. See `docs/capture.md`.
+- PDF export: one page per slide at the stage size with selectable text, or one page per step
+  with `steps`. Exports are now jobs that run in the background; `GET /api/exports/{id}` reports
+  `done` and `total`.
+- Thumbnails of the first slide after every save, served at `/p/{token}/thumbnail.jpg` and named
+  by `og:image` and oEmbed.
+- A PPTX shows a picture of each animated (`raw`) slide; it falls back to the placeholder, and
+  says so in `notice`, when the capture service is down.
+- MP4 export through Clap, with a token exchanged for the person (`CLAP_URL`).
+- `diapo_export` takes `steps` and `job_id`, waits up to 30 seconds and answers a pending job
+  to read again.
+- Migration `0005_export_progress.sql`. New variable: `CLAP_URL`.
+- `GET /api/exports/formats`: which formats an export would start for now. The export dialog
+  reads it instead of starting a job per format, and turning a share link off asks first.
+
+### Changed
+
+- The `Dockerfile` has two targets: `api` stays on distroless with no shell and no browser,
+  `worker` is a pinned `debian:bookworm-slim` with a pinned `chrome-headless-shell` and `tini`.
+- A person has one export under way at a time, and MP4 exports wait on Clap in a lane of their
+  own. Migration `0006_one_export_per_person.sql`.
+- Frame asset links last ten minutes instead of an hour.
+- Thumbnails are made for shared decks only. A public thumbnail is cached a minute, privately.
+- `diapo-api` is held to 1536 MiB in the compose file.
+
+### Fixed
+
+- An HTML export encodes each asset once and refuses a file over 300 MiB before building it.
+  One asset named many times could take the server's memory.
+- Export files and thumbnails are removed with their deck, with the person who is erased, and by
+  an hourly sweep of files no row names.
+- The API reads nothing the capture worker wrote through a symbolic link, and builds each job
+  where the worker cannot reach it.
+- The Clap bearer is asked for again on every call, so a render longer than a token's life
+  finishes.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
@@ -58,28 +99,6 @@ All notable changes to Diapo. Versions follow SemVer.
   embedded pictures and presenter notes become editable shapes; a `raw` scene becomes a slide
   that says it is animated HTML.
 - Migration `0004_share_exports.sql`. New variables: `PUBLIC_URL`, `EMBED_ANCESTORS`.
-- The capture service: `crates/capture` (the job files, and a DevTools Protocol pipe client
-  that makes thumbnails, stills and PDFs from a compiled deck) and `apps/worker`, run as the
-  `diapo-render` service with no network, a read-only root, no capability and Chrome's sandbox
-  on. See `docs/capture.md`.
-- PDF export: one page per slide at the stage size with selectable text, or one page per step
-  with `steps`. Exports are now jobs that run in the background; `GET /api/exports/{id}` reports
-  `done` and `total`.
-- Thumbnails of the first slide after every save, served at `/p/{token}/thumbnail.jpg` and named
-  by `og:image` and oEmbed.
-- A PPTX shows a picture of each animated (`raw`) slide; it falls back to the placeholder, and
-  says so in `notice`, when the capture service is down.
-- MP4 export through Clap, with a token exchanged for the person (`CLAP_URL`).
-- `diapo_export` takes `steps` and `job_id`, waits up to 30 seconds and answers a pending job
-  to read again.
-- Migration `0005_export_progress.sql`. New variable: `CLAP_URL`.
-
-### Changed
-
-- The image moves from distroless to a pinned `debian:bookworm-slim` with a pinned
-  `chrome-headless-shell` and `tini`. The API still never starts a browser.
-- `GET /api/exports/formats`: which formats an export would start for now. The export dialog
-  reads it instead of starting a job per format, and turning a share link off asks first.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
 - `apps/cli`: the `diapo` command line. `new`, `serve` (live reload, problems in the terminal
