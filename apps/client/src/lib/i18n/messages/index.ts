@@ -2,10 +2,12 @@ import type { Catalogs, Message } from '@facile/muse';
 import type { Row } from '../row';
 import { decks } from './decks';
 import { editor } from './editor';
+import { landing } from './landing';
+import { landingDemo } from './landing-demo';
 import { pending } from './pending';
 import { show } from './show';
 
-const rows = { ...decks, ...editor, ...pending, ...show };
+const rows = { ...decks, ...editor, ...landing, ...landingDemo, ...pending, ...show };
 
 export type AppKey = keyof typeof rows;
 type AppCatalog = Record<AppKey, Message>;
