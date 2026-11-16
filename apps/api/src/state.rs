@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use porte::exchange::Exchanger;
 use sqlx::PgPool;
+use tokio::sync::Semaphore;
 use tronc::mcp::Confirmations;
 
 use crate::env::Limits;
@@ -21,7 +22,7 @@ pub struct AppState {
     pub data_dir: Arc<PathBuf>,
     /// Tells open editors a deck changed.
     pub events: Events,
-    /// Signs the asset links a sandboxed frame loads without a cookie.
+    /// Signs the asset links a sandboxed frame loads without a cookie, and export download links.
     pub frame_key: FrameKey,
     /// The byte caps.
     pub limits: Limits,
@@ -31,4 +32,13 @@ pub struct AppState {
     pub exchanger: Option<Exchanger>,
     /// Where the person's assistant lives.
     pub bulle: Bulle,
+    /// The origin people reach the app at, such as `https://diapo.facile.studio`: share links,
+    /// oEmbed and `og:` tags are built on it.
+    pub public_url: Arc<str>,
+    /// The origins that may frame `/embed/{token}` besides the app itself.
+    pub embed_ancestors: Arc<[String]>,
+    /// The built client, whose `index.html` is the shell of the public pages.
+    pub client_dir: Arc<PathBuf>,
+    /// The one export slot: a single job builds at a time.
+    pub exports: Arc<Semaphore>,
 }

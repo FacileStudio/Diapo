@@ -13,10 +13,11 @@ name = "api"
 path = "src/main.rs"
 
 [dependencies]
-scene = { package = "facile-scene", path = "../../crates/scene" }
+scene = { package = "facile-scene", path = "../../crates/scene", features = ["pptx"] }
 tronc = { git = "https://github.com/FacileStudio/tronc-rs", tag = "v0.5.1", features = ["http", "health", "spa", "migrate", "journal", "apiref", "bulle", "mcp"] }
 porte = { git = "https://github.com/FacileStudio/porte-rs", tag = "v0.8.1", features = ["pg", "oidc", "directory", "exchange", "mcp"] }
 async-trait = "0.1.92"
+base64 = "0.23.1"
 axum = { version = "0.8.9", features = ["multipart", "macros"] }
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
 hmac = "0.13.0"
