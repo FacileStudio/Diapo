@@ -32,6 +32,11 @@ All notable changes to Diapo. Versions follow SemVer.
   the presenter view at `/decks/{id}/presenter`, kept in step through a `BroadcastChannel`; the
   trash, the settings page and the agent-request page at `/pending`. In French, English,
   Spanish and German.
+- The public landing page at `/` for signed-out visitors: a mise-en-scene demo of the editor,
+  four feature tiles, the suite pricing block, and a `/downloads` page for the `diapo` command.
+  Favicons, the link preview image and the web manifest come from muse's brand generator. The
+  Vision tracker loads on the two public pages as a pinned same-origin copy.
+- Language is now picked on the settings page (muse v0.30.0 slimmed the user menu).
 - The app mark is the Solar `presentation-graph-bold-duotone` glyph.
 - New variables: `MCP_RESOURCE`, `MCP_STATE_KEY`, `SOURCE_MAX_BYTES`, `ASSET_MAX_BYTES`,
   `DECK_ASSETS_MAX_BYTES`, `BULLE_URL`, `BULLE_CLIENT_ID`.
