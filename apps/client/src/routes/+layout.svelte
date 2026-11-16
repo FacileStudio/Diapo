@@ -29,7 +29,7 @@
 	const path = $derived(page.url.pathname);
 
 	const bare = $derived(/^\/decks\/[^/]+\/(present|presenter)$/.test(path));
-	const open = $derived(path === '/downloads');
+	const open = $derived(path === '/downloads' || /^\/(p|embed)\/[^/]+$/.test(path));
 	const focused = $derived(path.startsWith('/decks/'));
 	const onSettings = $derived(path.startsWith('/settings'));
 
@@ -38,7 +38,7 @@
 	restoreTheme();
 
 	$effect(() => {
-		if (!session.ready) void session.load();
+		if (!session.ready && !open) void session.load();
 	});
 
 	$effect(() => {
