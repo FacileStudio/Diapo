@@ -37,6 +37,8 @@ which the task sets to `.local/data` (ignored by git). `/mcp` is off until
 |---|---|
 | `crates/scene` | `facile-scene`: the format. No database, no network, no async |
 | `apps/api` | The `api` binary: the server, `healthcheck`, `migrate` |
+| `crates/capture` | `diapo-capture`: the capture job files, and with the `chrome` feature the browser client |
+| `apps/worker` | The `worker` binary: the isolated capture service |
 | `apps/cli` | `diapo-cli`: the `diapo` binary. Blocking I/O, no async runtime |
 
 `apps/client` is the SvelteKit client. It is not a Cargo member.
@@ -63,6 +65,11 @@ cargo test --workspace --locked
 | `apps/api/tests/share.rs`, `public.rs` | Share links, the public routes (404 edges, no cookie, no notes), `og:` tags, oEmbed, the embed header |
 | `apps/api/tests/exports.rs` | HTML and PPTX exports, signed downloads, the purge |
 | `crates/scene/tests/pptx.rs` | The PPTX package: well-formed parts, text, lists, tables, pictures, notes. Opens it with LibreOffice when `soffice` is installed, and prints `SKIPPED` otherwise |
+| `crates/scene/tests/pptx_tools.rs` | The PPTX read back by python-pptx (through `uv`, or a `python3` venv): slide count, titles, list levels, a table, pictures, notes. Prints `SKIPPED` when neither runs |
+| `crates/capture/tests/shoot.rs` | Real captures in `chrome-headless-shell`: thumbnail, still, both PDFs, and a page that reaches nothing outside its bundle. Prints `SKIPPED` without Chrome |
+| `apps/worker/src/**` | The worker's job loop, limits, cancel and link safety |
+| `apps/api/tests/capture.rs` | PDF export, PPTX pictures and thumbnails against a worker that follows the file protocol |
+| `apps/api/tests/clap.rs` | MP4 export against a mock of Clap's `POST /api/renders` |
 | `apps/api/tests/mcp.rs`, `mcp_tools.rs` | tronc's `mcptest` conformance, the eight tools, scope gates, the delete confirmation |
 | `apps/cli/tests/*.rs` | The HTTP module against an in-process mock server, the sync decisions, every command through the binary, and `live.rs`: push and pull against the real API on Postgres |
 | `apps/client/src/**/*.test.ts` | The client's unit tests (vitest, jsdom) |
