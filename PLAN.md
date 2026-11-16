@@ -221,6 +221,24 @@ Wave C, after B merges:
 
 Wave D: release and deploy, in `PLAN-suite-wiring.md`.
 
+## Prisme link cards (contract requested by the Prisme session, 2026-11-16)
+
+Prisme v0.24 renders rich cards for Diapo links. Part of the share-link step:
+
+- `GET /oembed?url=<encoded share URL>&format=json`: oEmbed 1.0, no cookies, no auth. `200`
+  only for a live share link, `404` for anything else, so a private item never leaks.
+  JSON: `version "1.0"`, `type "rich"`, `provider_name "Diapo"`, `title`, `thumbnail_url`,
+  `thumbnail_width`, `thumbnail_height`, `html` (an iframe to the embed page), `width`,
+  `height`.
+- `GET /embed/{token}`: read-only viewer, framable only by
+  `frame-ancestors 'self' https://prisme.facile.studio`. The path carries the share token,
+  never the internal id.
+- The public share page (`/p/{token}`) sets `og:title` and `og:image`.
+- Thumbnail: the first slide, served at `/p/{token}/thumbnail.jpg`.
+
+Verify: a test fetches `/oembed` for a shared and an unshared item and gets 200 and 404; the
+embed response carries the `frame-ancestors` header above.
+
 ## Boundaries
 
 - Ask first: any change to the scene format after `v0.1.0` (Clap pins it); raising a filet
