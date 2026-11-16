@@ -14,9 +14,14 @@ use crate::state::AppState;
 /// The width of a thumbnail in pixels; its height follows the deck's stage ratio.
 pub const WIDTH: u32 = 1280;
 
+/// `DATA_DIR/thumbnails/<deck id>`: the thumbnails of one deck.
+pub fn folder(data_dir: &Path, deck: Uuid) -> PathBuf {
+    data_dir.join("thumbnails").join(deck.to_string())
+}
+
 /// `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`: one file per deck revision.
 pub fn path(data_dir: &Path, deck: Uuid, rev: i64) -> PathBuf {
-    data_dir.join("thumbnails").join(deck.to_string()).join(format!("{rev}.jpg"))
+    folder(data_dir, deck).join(format!("{rev}.jpg"))
 }
 
 /// The public route of the thumbnail behind the link `token`.
@@ -41,7 +46,7 @@ pub async fn serve(state: &AppState, deck: Uuid, rev: i64) -> Result<Response> {
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
     headers.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
-    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=300"));
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, max-age=60"));
     Ok(response)
 }
 

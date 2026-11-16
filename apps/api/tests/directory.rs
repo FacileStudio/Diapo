@@ -51,7 +51,10 @@ async fn erasing_a_person_removes_their_decks_memberships_and_account() {
     let roles = fixture::roles(&app).await;
     let personal = fixture::id(&fixture::deck(&app, &roles.member, None, SOURCE).await);
     let shared = fixture::id(&fixture::deck(&app, &roles.member, Some(&roles.space), SOURCE).await);
-    AppData::new(pool.clone()).on_person_deleted(common::ISSUER, &roles.member.subject).await.unwrap();
+    AppData::new(pool.clone(), app.state.data_dir.as_ref().clone())
+        .on_person_deleted(common::ISSUER, &roles.member.subject)
+        .await
+        .unwrap();
     let ids = [uuid::Uuid::parse_str(&personal).unwrap(), uuid::Uuid::parse_str(&shared).unwrap()];
     let left: Vec<uuid::Uuid> =
         sqlx::query_scalar("SELECT id FROM decks WHERE id = ANY($1)").bind(&ids[..]).fetch_all(&pool).await.unwrap();
