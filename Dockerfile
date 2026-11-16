@@ -40,22 +40,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && echo "${CHROME_SHA256}  /tmp/chrome.zip" | sha256sum -c - \
     && unzip -q /tmp/chrome.zip -d /opt && rm /tmp/chrome.zip
 
-FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS worker
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \
        fonts-liberation fonts-noto-color-emoji libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 \
        libdbus-1-3 libexpat1 libgbm1 libglib2.0-0 libnspr4 libnss3 libudev1 libx11-6 libxcb1 libxcomposite1 \
        libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=chrome /opt/chrome-headless-shell-linux64 /opt/chrome-headless-shell
-COPY --from=api-build /repo/target/release/api /api
 COPY --from=api-build /repo/target/release/worker /worker
+ENV HOME=/tmp
+ENV DIAPO_CHROME=/opt/chrome-headless-shell/chrome-headless-shell
+ENV DIAPO_CAPTURES_DIR=/data/captures
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD ["/worker", "healthcheck"]
+USER 65532:65532
+ENTRYPOINT ["/usr/bin/tini", "--", "/worker"]
+
+FROM gcr.io/distroless/cc-debian12:nonroot@sha256:9dac0a79194e45a7da0158a9c6da57b217585af0786db3845d1f0ec1a0dd182f AS api
+COPY --from=api-build /repo/target/release/api /api
 COPY --from=client-build /client/build /client
 ENV CLIENT_DIR=/client
 ENV PORT=4000
 ENV DATA_DIR=/data
-ENV HOME=/tmp
-ENV DIAPO_CHROME=/opt/chrome-headless-shell/chrome-headless-shell
 EXPOSE 4000
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 CMD ["/api", "healthcheck"]
 USER 65532:65532
-ENTRYPOINT ["/usr/bin/tini", "--", "/api"]
+ENTRYPOINT ["/api"]

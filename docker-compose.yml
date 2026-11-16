@@ -31,6 +31,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: api
     expose:
     - '4000'
     networks:
@@ -88,12 +89,15 @@ services:
         condition: service_completed_successfully
     deploy:
       replicas: 1
+      resources:
+        limits:
+          memory: 1536M
   diapo-render:
     restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: ["/usr/bin/tini", "--", "/worker"]
+      target: worker
     user: "65532:65532"
     network_mode: none
     read_only: true
