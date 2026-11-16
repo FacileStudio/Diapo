@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Blob } from '@facile/blob';
 	import { Button, Icon, IconButton, Menu, icons, type MenuEntry } from '@facile/muse';
+	import { shareIcon } from '$lib/brand';
 	import type { SaveStatus } from '$lib/deck/saver.svelte';
 	import { t } from '$lib/i18n';
 	import type { AppKey } from '$lib/i18n/messages';
@@ -14,6 +15,8 @@
 		bulleOpen,
 		onrename,
 		onassets,
+		onshare,
+		onexport,
 		ontogglebulle
 	}: {
 		id: string;
@@ -26,6 +29,8 @@
 		bulleOpen: boolean;
 		onrename: (title: string) => void;
 		onassets: () => void;
+		onshare: () => void;
+		onexport: () => void;
 		ontogglebulle: () => void;
 	} = $props();
 
@@ -98,6 +103,12 @@
 		</Menu>
 		<IconButton variant="ghost" aria-label={t('assets.title')} onclick={onassets}>
 			<Icon icon={icons.folder} size={18} />
+		</IconButton>
+		<IconButton variant="ghost" aria-label={t('export.title')} onclick={onexport} data-testid="export-open">
+			<Icon icon={icons.download} size={18} />
+		</IconButton>
+		<IconButton variant="ghost" aria-label={t('share.title')} onclick={onshare} data-testid="share-open">
+			<Icon icon={shareIcon} size={18} />
 		</IconButton>
 		<button
 			type="button"

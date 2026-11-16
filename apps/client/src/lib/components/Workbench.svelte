@@ -17,8 +17,10 @@
 	import ConflictBanner from './ConflictBanner.svelte';
 	import EditorHeader from './EditorHeader.svelte';
 	import ErrorList from './ErrorList.svelte';
+	import ExportDialog from './ExportDialog.svelte';
 	import PreviewPane from './PreviewPane.svelte';
 	import SceneStrip from './SceneStrip.svelte';
+	import ShareDialog from './ShareDialog.svelte';
 	import SourceEditor from './SourceEditor.svelte';
 
 	let { deck }: { deck: Deck } = $props();
@@ -45,6 +47,8 @@
 	let stripStamp = $state(`${saver.rev}.0`);
 	let assets = $state<Asset[]>([]);
 	let assetsOpen = $state(false);
+	let shareOpen = $state(false);
+	let exportOpen = $state(false);
 	let assistant = $state(DEFAULT_ASSISTANT.name);
 	let bulleOpen = $state(sidebarOpen(owner));
 
@@ -147,6 +151,8 @@
 		{bulleOpen}
 		onrename={rename}
 		onassets={() => (assetsOpen = true)}
+		onshare={() => (shareOpen = true)}
+		onexport={() => (exportOpen = true)}
 		ontogglebulle={() => (bulleOpen = !bulleOpen)}
 	/>
 	{#if saver.status === 'conflict'}
@@ -194,6 +200,8 @@
 </div>
 
 <AssetsPanel bind:open={assetsOpen} {id} bind:assets />
+<ShareDialog bind:open={shareOpen} {id} {title} width={plan.width} height={plan.height} />
+<ExportDialog bind:open={exportOpen} {id} />
 <BulleSidebar
 	bind:open={bulleOpen}
 	{assistant}

@@ -5,9 +5,10 @@ import { editor } from './editor';
 import { landing } from './landing';
 import { landingDemo } from './landing-demo';
 import { pending } from './pending';
+import { share } from './share';
 import { show } from './show';
 
-const rows = { ...decks, ...editor, ...landing, ...landingDemo, ...pending, ...show };
+const rows = { ...decks, ...editor, ...landing, ...landingDemo, ...pending, ...share, ...show };
 
 export type AppKey = keyof typeof rows;
 type AppCatalog = Record<AppKey, Message>;
