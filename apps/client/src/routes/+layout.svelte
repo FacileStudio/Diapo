@@ -17,6 +17,7 @@
 	import { backend } from '$lib/backend';
 	import { bindLocale, browserLocale, rememberLocale, t } from '$lib/i18n';
 	import { logoIcon } from '$lib/brand';
+	import { rememberReturn, takeReturn } from '$lib/return';
 	import { session } from '$lib/session.svelte';
 	import { restoreTheme, saveTheme } from '$lib/theme';
 
@@ -36,6 +37,13 @@
 
 	$effect(() => {
 		if (!session.ready) void session.load();
+	});
+
+	$effect(() => {
+		if (!session.ready) return;
+		if (!session.user) return rememberReturn(page.url);
+		const next = takeReturn();
+		if (next && next !== `${page.url.pathname}${page.url.search}`) void goto(next, { replaceState: true });
 	});
 
 	const pages = $derived([

@@ -1,4 +1,4 @@
-import type { Asset, AssistantProfile, Deck, DeckSummary, SceneError, SessionUser } from './types';
+import type { Asset, AssistantProfile, Deck, DeckSummary, PendingAction, SceneError, SessionUser } from './types';
 
 /** The suite error codes, from tronc's `statusByCode`. */
 export type ErrorCode =
@@ -98,6 +98,8 @@ const send = (method: string, body?: unknown): RequestInit => ({
 
 const deck = (id: string, rest = '') => `/decks/${encodeURIComponent(id)}${rest}`;
 
+const action = (id: string, verb: string) => `/mcp/pending/${encodeURIComponent(id)}/${verb}`;
+
 function upload(id: string, file: File): Promise<Asset> {
 	const form = new FormData();
 	form.append('file', file);
@@ -134,5 +136,8 @@ export const backend = {
 	assets: (id: string) => request<{ assets: Asset[] }>(deck(id, '/assets')).then((found) => found.assets),
 	upload,
 	removeAsset: (id: string, name: string) => request<void>(deck(id, `/assets/${encodeURI(name)}`), send('DELETE')),
-	assistant: () => request<AssistantProfile>('/assistant')
+	assistant: () => request<AssistantProfile>('/assistant'),
+	actions: () => request<{ actions: PendingAction[]; truncated?: boolean }>('/mcp/pending'),
+	confirmAction: (id: string) => request<unknown>(action(id, 'confirm'), send('POST')),
+	dismissAction: (id: string) => request<unknown>(action(id, 'dismiss'), send('POST'))
 };

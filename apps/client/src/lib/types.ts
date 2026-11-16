@@ -31,6 +31,18 @@ export interface AssistantProfile {
 	accent: string | null;
 }
 
+/** An agent action waiting for the person's confirmation, as `GET /api/mcp/pending` lists it. `target` is the deck id. */
+export interface PendingAction {
+	id: string;
+	kind: string;
+	target: string;
+	summary: string;
+	client_id: string;
+	created_at: string;
+	expires_at: string;
+	state: string;
+}
+
 /** The signed-in person, as `GET /api/auth/session` names them. */
 export interface SessionUser {
 	email: string;
