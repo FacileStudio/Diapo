@@ -11,7 +11,7 @@ use super::info::shared;
 use super::oembed::{self, Embed, Query};
 use super::{pages, thumbnail};
 use crate::extract::Params;
-use crate::modules::frame::render::cookieless;
+use crate::modules::frame::render::{cookieless, uncached};
 use crate::state::AppState;
 
 async fn present(State(state): State<AppState>, Path(token): Path<String>) -> Response {
@@ -46,5 +46,6 @@ pub fn root_routes(ancestors: &[String]) -> std::result::Result<Router<AppState>
         .route("/embed/{token}", get(embed).layer(open))
         .route("/oembed", get(card))
         .route_layer(axum::middleware::from_fn_with_state(limiter(), rate_limit))
-        .layer(axum::middleware::map_response(cookieless)))
+        .layer(axum::middleware::map_response(cookieless))
+        .layer(axum::middleware::map_response(uncached)))
 }

@@ -81,6 +81,17 @@ pub fn respond(html: String, policy: &str) -> Response {
     (headers, html).into_response()
 }
 
+/// Marks a public answer that names no caching as not to be stored. Without it a CDN in front
+/// of the app caches a `404` for a path that looks static, such as a thumbnail that is not
+/// rendered yet, and keeps serving it after the file exists.
+pub async fn uncached(mut response: Response) -> Response {
+    let headers = response.headers_mut();
+    if !headers.contains_key(header::CACHE_CONTROL) {
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    }
+    response
+}
+
 /// Removes any cookie a layer inside set: a response to a sandboxed or public reader carries none.
 pub async fn cookieless(mut response: Response) -> Response {
     response.headers_mut().remove(header::SET_COOKIE);

@@ -211,7 +211,9 @@ gone for good, and a trashed deck cannot be shared.
 No session, no cookie (a layer removes any `Set-Cookie`), 5 requests a second per client with a
 burst of 60, and 30 a second with a burst of 300 on the assets route, which a frame calls once
 per picture. The thumbnail is `Cache-Control: private, max-age=60`, so a revoked link stops
-showing it within a minute. Every one answers `404` for a token that is unknown, revoked, or on a trashed deck.
+showing it within a minute. Every other public answer that names no caching, a `404`
+included, is `no-store`: a CDN in front of the app would otherwise keep the `404` of a thumbnail
+that is not rendered yet, and serve it for minutes after the file exists. Every one answers `404` for a token that is unknown, revoked, or on a trashed deck.
 None answers the source, a presenter note, the deck id or the space.
 
 | Route | Answers |
@@ -245,7 +247,8 @@ The size is 960 wide at the deck's stage ratio, shrunk to `maxwidth` and `maxhei
 Only a shared deck has a thumbnail: the share page, oEmbed and `og:image` are the only places
 it shows. When a deck is shared, and after each save of a shared deck, the capture service makes
 the thumbnail of its new revision: `DATA_DIR/thumbnails/<deck id>/<rev>.jpg`, a JPEG 1280 pixels wide at the stage ratio.
-Saves within three seconds are captured once, one job per deck is in flight, and the newest
+It appears about five seconds after the deck is shared: a three-second debounce, then about
+two seconds of capture. Saves within three seconds are captured once, one job per deck is in flight, and the newest
 revision wins: once its file is in place the older ones are removed. The routes read the file
 of the deck's current `rev`: when it is there, `thumbnail.jpg` serves it and `og:image`, the
 oEmbed fields and `thumbnail` appear. While the service is down, or for the seconds a capture
