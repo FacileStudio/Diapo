@@ -36,7 +36,7 @@ limits:
   complexity: 10
 
 architecture:
-  requiredDirs: [crates/scene, apps/api, apps/client]
+  requiredDirs: [crates/scene, apps/api, apps/cli, apps/client]
   # A module that owns HTTP declares it in router.rs.
   requiredFiles:
     "apps/api/src/modules/*": [mod.rs, router.rs]

@@ -9,9 +9,11 @@ FROM rust:1-bookworm AS api-build
 WORKDIR /repo
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY apps/api/Cargo.toml apps/api/build.rs apps/api/
+COPY apps/cli/Cargo.toml apps/cli/
 COPY crates/scene/Cargo.toml crates/scene/
-RUN mkdir -p apps/api/src apps/api/migrations crates/scene/src \
+RUN mkdir -p apps/api/src apps/api/migrations apps/cli/src crates/scene/src \
     && echo 'fn main() {}' > apps/api/src/main.rs && echo '' > apps/api/src/lib.rs && echo '' > crates/scene/src/lib.rs \
+    && echo 'fn main() {}' > apps/cli/src/main.rs && echo '' > apps/cli/src/lib.rs \
     && cargo build --release --locked -p api && rm -rf apps/api/src apps/api/migrations crates/scene/src
 COPY crates crates
 COPY docs/format.md docs/format.md
