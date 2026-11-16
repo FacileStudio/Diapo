@@ -4,6 +4,7 @@
 |---|---|
 | [Format](format.md) | The scene format, the timeline and the `window.__scene` contract |
 | [API](api.md) | The routes, the `rev` rule, the sandboxed frame and its asset links, the MCP tools |
+| [Command line](cli.md) | The `diapo` CLI: commands, sign-in, sync, releases, the `facile` catalog entry |
 | [Development](development.md) | Local setup, tests, the quality gate |
 | [Deployment](deployment.md) | The image, the compose file, bumping a library |
 

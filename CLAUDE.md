@@ -1,8 +1,8 @@
 # Diapo
 
 Slides as one text file for the Facile suite, at `diapo.facile.studio`. A Cargo workspace: the
-scene format in `crates/scene`, the Rust API in `apps/api`, the SvelteKit client in
-`apps/client`, one container. The roadmap is `PLAN.md`.
+scene format in `crates/scene`, the Rust API in `apps/api`, the `diapo` command line in
+`apps/cli`, the SvelteKit client in `apps/client`, one container. The roadmap is `PLAN.md`.
 
 ## Stack
 
@@ -13,6 +13,9 @@ scene format in `crates/scene`, the Rust API in `apps/api`, the SvelteKit client
 - **Libraries**: `tronc` (tronc-rs v0.5.1) and `porte` (porte-rs v0.8.1), from their public
   `github.com/FacileStudio` repos by tag (bump: `docs/deployment.md`). Never copy their code
   here; report a gap instead
+- **CLI** (`apps/cli`, package `diapo-cli`, binary `diapo`): clap 4, ureq 3, tiny_http and
+  notify; blocking, no async runtime. All HTTP is in `src/api`, the pull and push decisions
+  in `src/sync/plan.rs`. `docs/cli.md` is its reference, and it follows the suite CLI standard
 - **Client** (`apps/client`): SvelteKit 2, Svelte 5 runes, Tailwind 4, `@facile/muse`
 
 ## Commands
@@ -24,6 +27,7 @@ mise run e2e                # the compiled scene fixtures in headless Chromium
 filet check .               # after the gate, before every commit
 mise run dev                # the API on :4000 against the local database
 cargo run -p api -- migrate status
+cargo run -p diapo-cli -- serve crates/scene/fixtures/basic
 cargo run -p facile-scene --example compile -- deck.md deck.html
 UPDATE_GOLDEN=1 cargo test -p facile-scene   # rewrite the golden files, then read the diff
 ```

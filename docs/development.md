@@ -37,6 +37,7 @@ which the task sets to `.local/data` (ignored by git). `/mcp` is off until
 |---|---|
 | `crates/scene` | `facile-scene`: the format. No database, no network, no async |
 | `apps/api` | The `api` binary: the server, `healthcheck`, `migrate` |
+| `apps/cli` | `diapo-cli`: the `diapo` binary. Blocking I/O, no async runtime |
 
 `apps/client` is the SvelteKit client. It is not a Cargo member.
 
@@ -60,6 +61,7 @@ cargo test --workspace --locked
 | `apps/api/tests/events.rs` | The server-sent `changed` stream |
 | `apps/api/tests/directory.rs` | The directory snapshot, retired spaces, account erasure |
 | `apps/api/tests/mcp.rs`, `mcp_tools.rs` | tronc's `mcptest` conformance, the eight tools, scope gates, the delete confirmation |
+| `apps/cli/tests/*.rs` | The HTTP module against an in-process mock server, the sync decisions, and every command through the binary |
 | `apps/client/src/**/*.test.ts` | The client's unit tests (vitest, jsdom) |
 
 Without `TEST_DATABASE_URL` the database tests print a skip banner and pass: read the output.
