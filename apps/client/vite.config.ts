@@ -7,7 +7,7 @@ const api = 'http://127.0.0.1:4000';
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	optimizeDeps: {
-		exclude: ['@facile/muse']
+		exclude: ['@facile/muse', '@facile/encre']
 	},
 	resolve: process.env.VITEST ? { conditions: ['browser'] } : {},
 	server: {

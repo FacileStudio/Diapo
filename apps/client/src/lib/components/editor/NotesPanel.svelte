@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Editor, type AwarenessProvider, type CollabUser, type Locale } from '@facile/encre';
+	import { Editor, type CollabUser, type Locale } from '@facile/encre';
 	import { Icon, icons } from '@facile/muse';
 	import type { DeckEditor } from '$lib/editor/types';
 	import { locale, t } from '$lib/i18n';
@@ -14,24 +14,6 @@
 		user: CollabUser;
 		open: boolean;
 	} = $props();
-
-	const waiting = new Set<(synced: boolean) => void>();
-
-	const provider: AwarenessProvider = {
-		get awareness() {
-			return editor.awareness;
-		},
-		get synced() {
-			return editor.synced;
-		},
-		on: (_event, listener) => void waiting.add(listener),
-		off: (_event, listener) => void waiting.delete(listener)
-	};
-
-	$effect(() => {
-		const synced = editor.synced;
-		if (synced) for (const listener of [...waiting]) listener(synced);
-	});
 
 	const slide = $derived(editor.current);
 	const editable = $derived(editor.synced && editor.stopped === null);
@@ -60,7 +42,7 @@
 			{#key slide}
 				<Editor
 					fragment={editor.notes(slide)}
-					{provider}
+					provider={editor.provider ?? undefined}
 					{user}
 					{editable}
 					presence="none"

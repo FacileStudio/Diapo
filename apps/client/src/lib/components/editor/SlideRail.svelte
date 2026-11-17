@@ -14,7 +14,7 @@
 
 	const urls = $derived(new Map(assets.map((asset) => [asset.name, asset.url])));
 	const locked = $derived(!editor.synced || editor.stopped !== null);
-	const text = (shape: Shape<FullType>) => (edits, shape.text ?? plainText(editor.text(shape.id)));
+	const text = (shape: Shape<FullType>) => (edits < 0 ? '' : (shape.text ?? plainText(editor.text(shape.id))));
 
 	$effect(() => {
 		const ydoc = editor.doc.ydoc;

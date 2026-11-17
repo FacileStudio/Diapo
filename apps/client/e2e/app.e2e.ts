@@ -50,10 +50,12 @@ test('every control of the editor header has the same height', async () => {
 });
 
 test('a new slide with a text box and a note persists across a reload, and the preview shows it', async () => {
+	await slides(editor).nth(1).click();
 	await editor.getByTestId('slide-add').click();
 	expect(await editor.getByTestId('slide-count').textContent()).toContain('3 diapositives');
 	expect(await slides(editor).nth(2).getAttribute('aria-current')).toBe('true');
 	await editor.getByTestId('tool-text').click();
+	await editor.locator('.stage-slide .ProseMirror[contenteditable="true"]').click();
 	await editor.keyboard.type(TYPED);
 	await editor.getByTestId('notes-editor').locator('.ProseMirror').click();
 	await editor.keyboard.type('À moi.');

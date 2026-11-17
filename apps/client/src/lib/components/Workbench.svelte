@@ -7,6 +7,7 @@
 	import { watchDeck } from '$lib/deck/events';
 	import { Playhead } from '$lib/deck/playhead.svelte';
 	import { createDeckEditor } from '$lib/editor/deck.svelte';
+	import { deckAssetUrl } from '$lib/editor/room';
 	import { t } from '$lib/i18n';
 	import { session } from '$lib/session.svelte';
 	import type { Asset, Deck } from '$lib/types';
@@ -45,7 +46,6 @@
 
 	const ratio = $derived(editor.size.width / editor.size.height);
 	const stamp = $derived(`${rev}.${touches}`);
-	const assetUrl = (name: string) => assets.find((asset) => asset.name === name)?.url ?? '';
 	const loadAssets = () => backend.assets(id).then((found) => (assets = found));
 	const failed = (error: unknown) => toast.danger(error instanceof Error ? error.message : t('error.generic'));
 
@@ -128,7 +128,7 @@
 			{:else}
 				<Toolbar {editor} {assets} onfiles={() => (assetsOpen = true)} />
 				<div class="relative min-h-0 flex-1 overflow-hidden rounded-fc-lg bg-fc-component">
-					<Stage {editor} src={assetUrl} />
+					<Stage {editor} src={(name) => deckAssetUrl(id, name)} />
 					{#if !editor.synced || editor.stopped}
 						<div
 							class="absolute inset-0 flex items-center justify-center gap-2 bg-fc-component/70 text-fc-sm text-fc-fg-muted"
