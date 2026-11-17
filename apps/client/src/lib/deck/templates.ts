@@ -1,58 +1,43 @@
 import { t } from '$lib/i18n';
-import type { AppKey } from '$lib/i18n/messages';
 
-/** A ready-made scene of the insert menu, written as `docs/format.md` writes its examples. */
-export interface Template {
-	id: 'cover' | 'bullets' | 'split' | 'raw';
-	label: AppKey;
-	/** The scene text, separator and frontmatter included. `image` is the picture a split scene shows. */
-	scene: (image: string) => string;
+const SLIDE = { w: 1920, h: 1080, gap: 200 };
+
+type Text = { id: string; box: string; style: string; body: string; step?: number };
+
+function text(shape: Text, z: string): string {
+	const step = shape.step ? ` step="${shape.step}"` : '';
+	return `\`\`\`text id="${shape.id}" ${shape.box} z="${z}"${step} ${shape.style}\n${shape.body}\n\`\`\``;
 }
 
-const cover = () =>
-	`---\nlayout: cover\n---\n\n# ${t('template.title')}\n\n${t('template.subtitle')}\n\n<!-- ${t('template.note')} -->\n`;
+function frame(index: number, name: string, inside: string[]): string {
+	const x = index * (SLIDE.w + SLIDE.gap);
+	const head = `id="slide${index + 1}" x="${x}" y="0" w="${SLIDE.w}" h="${SLIDE.h}" name="${name}" order="a${index}"`;
+	return `\`\`\`\`frame ${head}\n${inside.join('\n\n')}\n\`\`\`\``;
+}
 
-const bullets = () =>
-	`---\n\n## ${t('template.title')}\n\n- ${t('template.first')} {step=1}\n- ${t('template.second')} {step=2}\n- ${t('template.third')} {step=3}\n`;
+function cover(title: string): string {
+	const heading = { id: 'title1', box: 'x="160" y="360" w="1600" h="220"', style: 'style.size="96"', body: `# ${title}` };
+	const sub = { id: 'sub1', box: 'x="160" y="620" w="1600" h="120"', style: 'style.size="40"', body: t('starter.sub') };
+	return frame(0, title, [text(heading, 'a0'), text(sub, 'a1')]);
+}
 
-const split = (image: string) =>
-	`---\nlayout: split\n---\n\n## ${t('template.title')}\n\n- ${t('template.first')} {step=1}\n- ${t('template.second')} {step=2}\n\n![](${image})\n`;
-
-const raw = () =>
-	[
-		'---',
-		'layout: raw',
-		'duration: 6',
-		'---',
-		'',
-		'<div class="clip" data-start="0" data-duration="6" style="display: grid; place-items: center; height: 100%">',
-		`  <h1 class="animated-title">${t('template.title')}</h1>`,
-		'</div>',
-		'<script>',
-		'  scene.timeline((tl) => tl.from(".animated-title", { opacity: 0, y: 40, duration: 0.8 }));',
-		'</script>',
-		''
-	].join('\n');
+function topic(): string {
+	const name = t('starter.heading');
+	const box = (y: number, h: number) => `x="160" y="${y}" w="1600" h="${h}"`;
+	const shapes = [
+		{ id: 'title2', box: box(120, 180), style: 'style.size="72"', body: `## ${name}` },
+		{ id: 'point1', box: box(400, 120), style: 'style.size="44"', body: t('starter.first'), step: 1 },
+		{ id: 'point2', box: box(560, 120), style: 'style.size="44"', body: t('starter.second'), step: 2 }
+	];
+	const notes = `\`\`\`notes\n${t('starter.note')}\n\`\`\``;
+	return frame(1, name, [notes, ...shapes.map((shape, index) => text(shape, `a${index}`))]);
+}
 
 /**
- * The source a new deck opens with, in the person's language: a cover, then one scene that
- * reveals two points and carries a presenter note. `title` goes in as plain text.
+ * The planche projection a new deck opens with, in the person's language: a cover, then one
+ * slide that reveals two points and carries a speaker note. `title` goes in as plain text.
  */
 export function starterSource(title: string): string {
-	const plain = title.replace(/[\r\n"\\<>]/g, ' ').trim();
-	const head = `---\ntitle: "${plain}"\nlayout: cover\n---\n\n# ${plain}\n\n${t('starter.sub')}\n`;
-	const points = `- ${t('starter.first')} {step=1}\n- ${t('starter.second')} {step=2}\n`;
-	return `${head}\n---\n\n## ${t('starter.heading')}\n\n${points}\n<!-- ${t('starter.note')} -->\n`;
+	const plain = title.replace(/[\r\n"\\<>`*_[\]]/g, ' ').trim();
+	return `---\nplanche: 1\nsize: ${SLIDE.w}x${SLIDE.h}\n---\n\n${cover(plain)}\n\n${topic()}\n`;
 }
-
-/** The scenes the insert menu offers. */
-export const TEMPLATES: Template[] = [
-	{ id: 'cover', label: 'insert.cover', scene: cover },
-	{ id: 'bullets', label: 'insert.bullets', scene: bullets },
-	{ id: 'split', label: 'insert.split', scene: split },
-	{ id: 'raw', label: 'insert.raw', scene: raw }
-];
-
-/** A 16:9 grey plate as a `data:` URI: the picture of a split scene until the deck has one. */
-export const PLACEHOLDER_IMAGE =
-	'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 9%22%3E%3Crect width=%2216%22 height=%229%22 fill=%22%23999%22/%3E%3C/svg%3E';

@@ -4,7 +4,7 @@
 	import { Spinner } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { DeckLoader } from '$lib/deck/loader.svelte';
-	import { outline } from '$lib/deck/outline';
+	import { readPlan } from '$lib/deck/projection';
 	import { Show } from '$lib/deck/show.svelte';
 	import { t } from '$lib/i18n';
 	import PresentControls from '$lib/components/PresentControls.svelte';
@@ -25,7 +25,7 @@
 		if (loader.missing) void goto(`/decks/${id}`, { replaceState: true });
 	});
 
-	const plan = $derived(outline(loader.deck?.source ?? ''));
+	const plan = $derived(readPlan(loader.deck?.source ?? ''));
 	const last = $derived(playhead.info?.steps ?? 0);
 
 	function wake() {

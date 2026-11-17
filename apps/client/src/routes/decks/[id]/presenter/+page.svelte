@@ -3,7 +3,7 @@
 	import { Button, EmptyState, Icon, IconButton, Spinner, icons } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { DeckLoader } from '$lib/deck/loader.svelte';
-	import { outline } from '$lib/deck/outline';
+	import { readPlan } from '$lib/deck/projection';
 	import { Show, Stopwatch, clock } from '$lib/deck/show.svelte';
 	import { revealed } from '$lib/deck/stage';
 	import { t } from '$lib/i18n';
@@ -20,11 +20,11 @@
 	$effect(() => show.join(id));
 	$effect(() => () => watch.pause());
 
-	const plan = $derived(outline(loader.deck?.source ?? ''));
+	const plan = $derived(readPlan(loader.deck?.source ?? ''));
 	const ratio = $derived(plan.width / plan.height);
 	const src = $derived(backend.frameUrl(id, { stamp: loader.deck?.rev }));
 	const position = $derived(playhead.position);
-	const note = $derived(plan.scenes[playhead.at.scene]?.note ?? '');
+	const note = $derived(plan.notes[playhead.at.scene] ?? '');
 	const upcoming = $derived(playhead.at.scene + 1 < position.scenes ? playhead.at.scene + 1 : null);
 
 	function onkeydown(event: KeyboardEvent) {

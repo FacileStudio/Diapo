@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, backend } from '$lib/backend';
 import { bindLocale } from '$lib/i18n';
-import { outline } from './outline';
+import { isPlanche, readPlan } from './projection';
 import { Shelf } from './shelf.svelte';
 import { starterSource } from './templates';
 
@@ -11,21 +11,30 @@ afterEach(() => {
 });
 
 describe('starterSource', () => {
-	it('is a cover and a two-step scene with a note, in the person’s language', () => {
-		const found = outline(starterSource('Bilan T3'));
-		expect(found.scenes.map((scene) => [scene.layout, scene.title, scene.steps])).toEqual([
-			['cover', 'Bilan T3', 0],
-			['default', 'Premier sujet', 2]
-		]);
-		expect(found.scenes[1].note).toContain('vue de l’orateur');
+	it('is a planche cover and a two-step slide with a note, in the person’s language', () => {
+		const source = starterSource('Bilan T3');
+		expect(isPlanche(source)).toBe(true);
+		const plan = readPlan(source);
+		expect([plan.width, plan.height, plan.notes.length]).toEqual([1920, 1080, 2]);
+		expect(plan.notes[0]).toBe('');
+		expect(plan.notes[1]).toContain('vue de l’orateur');
+		expect(source).toContain('# Bilan T3\n');
+		expect(source.match(/step="\d"/g)).toEqual(['step="1"', 'step="2"']);
 		bindLocale(() => 'de');
-		expect(outline(starterSource('Q3')).scenes[1].title).toBe('Erstes Thema');
+		expect(starterSource('Q3')).toContain('## Erstes Thema\n');
 	});
 
-	it('keeps a title from breaking the frontmatter or the markup', () => {
-		const source = starterSource('Plan "A": <b>go</b>\n---');
-		expect(source.split('\n')[1]).toBe('title: "Plan  A :  b go /b  ---"');
-		expect(outline(source).scenes).toHaveLength(2);
+	it('keeps a title from breaking an attribute or the markup', () => {
+		const source = starterSource('Plan "A": <b>go</b>\n`x`');
+		expect(source).toContain('name="Plan  A :  b go /b   x"');
+		expect(readPlan(source).notes).toHaveLength(2);
+	});
+});
+
+describe('readPlan', () => {
+	it('reads a legacy source by its scenes', () => {
+		const plan = readPlan('---\nsize: 1280x720\n---\n\n# A\n\n---\n\n## B\n\n<!-- Say B. -->\n');
+		expect(plan).toEqual({ width: 1280, height: 720, notes: ['', 'Say B.'] });
 	});
 });
 
