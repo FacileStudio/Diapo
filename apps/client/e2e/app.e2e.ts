@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { api, openPage, stageFrame, waitData, waitSource, type Stack } from './pages';
-import { startStack } from './stack';
+import { E2E_SPACE, startStack } from './stack';
 
 let stack: Stack;
 let browser: Browser;
@@ -112,27 +112,37 @@ test('a right-click duplicates a shape, and a text alignment persists across a r
 });
 
 test('two people on one deck see each other and each other’s edits live', async () => {
-	const other = await openPage(browser, stack, `/decks/${id}`);
+	await api(stack, `/decks/${id}`, { method: 'PATCH', body: { space_id: E2E_SPACE } });
+	const other = await openPage(browser, stack, `/decks/${id}`, stack.guest);
 	await waitData(other, 'editor', 'synced', 'true');
-	await editor.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
+	await editor.getByTestId('presence').getByRole('button', { name: 'Suivre Bob' }).waitFor({ timeout: 5_000 });
 	await other.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
 
 	await slides(editor).first().click();
 	await slides(other).first().click();
 	const shapes = (page: Page) => page.locator('.stage-slide [data-shape]');
+	const count = (page: Page, want: number) =>
+		page.waitForFunction((n) => document.querySelectorAll('.stage-slide [data-shape]').length === n, want, {
+			timeout: 2_000
+		});
 	const before = await shapes(other).count();
 	await editor.getByTestId('tool-rect').click();
-	await other.waitForFunction(
-		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
-		before + 1,
-		{ timeout: 1_000 }
+	await count(other, before + 1);
+
+	const added = (await shapes(editor).last().getAttribute('data-shape')) ?? '';
+	const left = (page: Page) => page.locator(`[data-shape="${added}"]`).evaluate((node) => (node as HTMLElement).style.left);
+	const start = await left(editor);
+	await other.locator(`[data-shape="${added}"]`).click();
+	await other.keyboard.press('Shift+ArrowRight');
+	await editor.waitForFunction(
+		([shape, was]) => (document.querySelector(`[data-shape="${shape}"]`) as HTMLElement | null)?.style.left !== was,
+		[added, start],
+		{ timeout: 2_000 }
 	);
+	expect(parseFloat(await left(editor))).toBe(parseFloat(start) + 10);
+
 	await editor.getByTestId('tool-delete').click();
-	await other.waitForFunction(
-		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
-		before,
-		{ timeout: 1_000 }
-	);
+	await count(other, before);
 	expect(await shapes(editor).count()).toBe(before);
 	await other.context().close();
 	await editor.getByTestId('presence').waitFor({ state: 'detached', timeout: 10_000 });

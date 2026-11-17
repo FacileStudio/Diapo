@@ -12,6 +12,9 @@ const local = 'postgres://postgres:postgres@127.0.0.1:5673/postgres?sslmode=disa
 const admin = process.env.E2E_ADMIN_URL ?? process.env.TEST_DATABASE_URL ?? local;
 const database = 'diapo_e2e';
 
+/** The space Alice and Bob share. */
+export const E2E_SPACE = 'e2e';
+
 function freePort(): number {
 	const probe = Bun.serve({ port: 0, fetch: () => new Response() });
 	const port = probe.port ?? 0;
@@ -43,21 +46,34 @@ async function ready(base: string, server: Subprocess): Promise<void> {
  * Writes one person and their browser session straight into the scratch database, the way a
  * sign-in leaves them: porte stores the SHA-256 of a `b~` token. Answers the cookie value.
  */
-async function seed(url: string): Promise<string> {
+async function person(sql: SQL, name: string, role: string): Promise<string> {
 	const token = `b~${randomBytes(32).toString('base64url')}`;
 	const hash = createHash('sha256').update(token).digest('hex');
-	const sql = new SQL(url);
-	const [user] = await sql`INSERT INTO porte_users (email, name) VALUES ('alice@e2e.test', 'Alice') RETURNING id`;
-	await sql`INSERT INTO porte_identities (user_id, provider, subject) VALUES (${user.id}, '', 'e2e-alice')`;
+	const login = name.toLowerCase();
+	const subject = `e2e-${login}`;
+	const [user] = await sql`INSERT INTO porte_users (email, name) VALUES (${`${login}@e2e.test`}, ${name}) RETURNING id`;
+	await sql`INSERT INTO porte_identities (user_id, provider, subject) VALUES (${user.id}, '', ${subject})`;
 	await sql`INSERT INTO porte_sessions (token_hash, user_id, expires_at)
 		VALUES (${hash}, ${user.id}, now() + interval '1 hour')`;
-	await sql.close();
+	await sql`INSERT INTO space_members (space_id, subject, email, name, role)
+		VALUES (${E2E_SPACE}, ${subject}, ${`${login}@e2e.test`}, ${name}, ${role})`;
 	return token;
 }
 
+/** Seeds the space `E2E_SPACE` with Alice, its owner, and Bob, a member. Answers their cookies. */
+async function seed(url: string): Promise<{ alice: string; bob: string }> {
+	const sql = new SQL(url);
+	await sql`INSERT INTO spaces (id, name) VALUES (${E2E_SPACE}, 'Équipe e2e')`;
+	const alice = await person(sql, 'Alice', 'owner');
+	const bob = await person(sql, 'Bob', 'member');
+	await sql.close();
+	return { alice, bob };
+}
+
 /**
- * Starts the Diapo API on a fresh database and a free port, serving the built client, with one
- * signed-in person. `E2E_LOG=1` shows the API's request log.
+ * Starts the Diapo API on a fresh database and a free port, serving the built client, with two
+ * signed-in people: Alice, whose cookie is `cookie`, and Bob, whose cookie is `guest`.
+ * `E2E_LOG=1` shows the API's request log.
  */
 export async function startStack(): Promise<Stack> {
 	for (const path of [api, `${clientDir}/index.html`]) {
@@ -83,5 +99,6 @@ export async function startStack(): Promise<Stack> {
 		await server.exited;
 		rmSync(dataDir, { recursive: true, force: true });
 	};
-	return { base, cookie: await seed(url), stop };
+	const { alice, bob } = await seed(url);
+	return { base, cookie: alice, guest: bob, stop };
 }
