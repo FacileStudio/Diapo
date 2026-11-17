@@ -4,6 +4,14 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-17
+
+### Changed
+
+- Menus show shortcuts in their own right-aligned column, and the shape menu groups layer order, align and distribute, and text alignment into submenus (muse v0.33.0).
+- planche v0.3.1. A shape's `track` stacks it above lower tracks, in the editor and in the presented deck.
+- The compiled deck carries a video or audio shape's `media_in` and `volume` as Clap's `data-in` and `data-volume`.
+
 ## [0.4.0] - 2026-11-17
 
 ### Added

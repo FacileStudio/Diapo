@@ -1,6 +1,6 @@
 [package]
 name = "diapo-cli"
-version = "0.4.0"
+version = "0.4.1"
 description = "Diapo, the Facile suite's slides: the command line"
 license.workspace = true
 edition.workspace = true
