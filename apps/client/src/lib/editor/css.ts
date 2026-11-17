@@ -3,6 +3,24 @@ import type { FullType, Shape } from '@facile/planche';
 /** The fill of a sticky without one, as the compiler paints it. */
 export const STICKY = '#fde68a';
 
+const PLACEMENT: Record<string, string> = { top: 'flex-start', middle: 'center', bottom: 'flex-end' };
+
+/** The declarations that place a text body for `valign`, as the compiler writes them; empty without one. */
+export function valignStyle(valign: string | undefined): string {
+	const justify = valign ? PLACEMENT[valign] : undefined;
+	return justify ? `display:flex;flex-direction:column;justify-content:${justify}` : '';
+}
+
+/** The vertical alignment a text type shows without `style.valign`: middle for boxes, top for the rest. */
+export function defaultValign(type: FullType): 'top' | 'middle' {
+	return type === 'rect' || type === 'ellipse' || type === 'diamond' ? 'middle' : 'top';
+}
+
+/** The horizontal alignment a text type shows without `style.align`: centre for boxes, left for the rest. */
+export function defaultAlign(type: FullType): 'left' | 'center' {
+	return defaultValign(type) === 'middle' ? 'center' : 'left';
+}
+
 const TEXT_TYPES = new Set(['sticky', 'text', 'rect', 'ellipse', 'diamond']);
 
 /** Whether a shape of `type` draws a text body. */
@@ -39,5 +57,7 @@ export function lookStyle(shape: Shape<FullType>): string {
 	if (shape.style.font) out.push(`font-family:${shape.style.font}`);
 	if (shape.style.size !== undefined) out.push(`font-size:${shape.style.size}px`);
 	if (shape.style.align) out.push(`text-align:${shape.style.align}`);
+	const column = valignStyle(shape.style.valign);
+	if (column) out.push(column);
 	return out.join(';');
 }

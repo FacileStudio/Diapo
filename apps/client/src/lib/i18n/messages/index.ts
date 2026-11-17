@@ -4,12 +4,13 @@ import { decks } from './decks';
 import { editor } from './editor';
 import { landing } from './landing';
 import { landingDemo } from './landing-demo';
+import { menus } from './menus';
 import { pending } from './pending';
 import { share } from './share';
 import { show } from './show';
 import { slides } from './slides';
 
-const rows = { ...decks, ...editor, ...landing, ...landingDemo, ...pending, ...share, ...show, ...slides };
+const rows = { ...decks, ...editor, ...landing, ...landingDemo, ...menus, ...pending, ...share, ...show, ...slides };
 
 export type AppKey = keyof typeof rows;
 type AppCatalog = Record<AppKey, Message>;

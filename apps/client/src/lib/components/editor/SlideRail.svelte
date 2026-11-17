@@ -5,6 +5,7 @@
 	import { t } from '$lib/i18n';
 	import type { Asset } from '$lib/types';
 	import SlideThumb from './SlideThumb.svelte';
+	import { keyed } from './menus';
 	import { plainText } from './text';
 
 	let { editor, assets }: { editor: DeckEditor; assets: Asset[] } = $props();
@@ -29,10 +30,14 @@
 
 	function entries(target: Element): MenuEntry[] {
 		const id = target.closest<HTMLElement>('[data-slide]')?.dataset.slide;
-		if (!id || locked) return [];
+		const index = editor.slides.findIndex((slide) => slide.id === id);
+		if (!id || index < 0 || locked) return [];
 		return [
 			{ label: t('rail.addAfter'), icon: icons.plus, onselect: () => add(id) },
 			{ label: t('rail.duplicate'), icon: icons.copy, onselect: () => editor.show(editor.duplicateSlide(id)) },
+			{ separator: true },
+			{ label: keyed(t('rail.up'), 'alt+up'), disabled: index === 0, onselect: () => shift(index, -1) },
+			{ label: keyed(t('rail.down'), 'alt+down'), disabled: index === editor.slides.length - 1, onselect: () => shift(index, 1) },
 			{ separator: true },
 			{
 				label: t('rail.delete'),
@@ -42,6 +47,12 @@
 				onselect: () => editor.removeSlide(id)
 			}
 		];
+	}
+
+	function shift(index: number, by: -1 | 1) {
+		const before = by < 0 ? editor.slides[index - 1] : editor.slides[index + 2];
+		if (by < 0 && !before) return;
+		editor.moveSlide(editor.slides[index].id, before?.id ?? null);
 	}
 
 	function drop(event: DragEvent, target: string) {
@@ -58,10 +69,7 @@
 	function onkeydown(event: KeyboardEvent, index: number) {
 		if (!event.altKey || locked || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
 		event.preventDefault();
-		const id = editor.slides[index].id;
-		const before = event.key === 'ArrowUp' ? editor.slides[index - 1] : editor.slides[index + 2];
-		if (event.key === 'ArrowUp' && !before) return;
-		editor.moveSlide(id, before?.id ?? null);
+		shift(index, event.key === 'ArrowUp' ? -1 : 1);
 	}
 </script>
 

@@ -85,6 +85,32 @@ test('a slide moves with the keyboard and comes back', async () => {
 	await slides(editor).nth(2).getByText(TYPED).waitFor({ timeout: 5_000 });
 });
 
+test('a right-click duplicates a shape, and a text alignment persists across a reload', async () => {
+	await slides(editor).first().click();
+	const shapes = editor.locator('.stage-slide [data-shape]');
+	const before = await shapes.count();
+	await editor.getByTestId('tool-rect').click();
+	await shapes.last().click({ button: 'right' });
+	await editor.getByRole('menuitem', { name: /^Dupliquer/ }).click();
+	await editor.waitForFunction((count) => document.querySelectorAll('.stage-slide [data-shape]').length === count, before + 2);
+	await editor.getByTestId('text-align').getByRole('radio', { name: 'Justifier' }).click();
+	await editor.getByTestId('text-valign').getByRole('radio', { name: 'Bas' }).click();
+	await waitSource(stack, id, 'style.align="justify" style.valign="bottom"');
+
+	await editor.reload();
+	await waitData(editor, 'editor', 'synced', 'true');
+	await slides(editor).first().click();
+	const looks = await shapes.evaluateAll((nodes) =>
+		nodes.map((node) => [getComputedStyle(node).textAlign, getComputedStyle(node).justifyContent].join(' '))
+	);
+	expect(looks.at(-1)).toBe('justify flex-end');
+	await shapes.last().click({ button: 'right' });
+	await editor.getByRole('menuitem', { name: /^Supprimer/ }).click();
+	await shapes.last().click({ button: 'right' });
+	await editor.getByRole('menuitem', { name: /^Supprimer/ }).click();
+	await editor.waitForFunction((count) => document.querySelectorAll('.stage-slide [data-shape]').length === count, before);
+});
+
 test('two people on one deck see each other and each other’s edits live', async () => {
 	const other = await openPage(browser, stack, `/decks/${id}`);
 	await waitData(other, 'editor', 'synced', 'true');

@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { Icon, IconButton, Menu, icons, type MenuEntry } from '@facile/muse';
+	import { EditorActions } from '$lib/editor/actions';
 	import type { DeckEditor, Insertable } from '$lib/editor/types';
 	import { t } from '$lib/i18n';
 	import type { Asset } from '$lib/types';
+	import { spell } from './menus';
 	import { tools } from './tools';
 
 	let {
 		editor,
 		assets,
-		onfiles
+		onfiles,
+		onhelp
 	}: {
 		editor: DeckEditor;
 		/** The deck's files: the image and video menus list them. */
 		assets: Asset[];
 		/** Opens the files panel, to upload one. */
 		onfiles: () => void;
+		/** Opens the list of keyboard shortcuts. */
+		onhelp: () => void;
 	} = $props();
 
 	const SHAPES = [
@@ -26,7 +31,8 @@
 
 	const ready = $derived(editor.synced && !editor.stopped && editor.current !== null);
 	const picked = $derived(editor.selection.length > 0);
-	const single = $derived(editor.selection.length === 1 ? editor.selection[0] : null);
+	const actions = $derived(new EditorActions(editor));
+	const hint = (label: string, keys: string) => `${label} (${spell(keys)})`;
 
 	const insert = (kind: Insertable, asset?: string) => void editor.insert(kind, undefined, asset);
 
@@ -49,6 +55,7 @@
 		<IconButton
 			variant="ghost"
 			aria-label={t(shape.label)}
+			tooltip={t('tool.insertHint', { what: t(shape.label) })}
 			disabled={!ready}
 			data-testid="tool-{shape.kind}"
 			onclick={() => insert(shape.kind)}
@@ -63,26 +70,61 @@
 			{/snippet}
 		</Menu>
 	{/each}
-	<span class="mx-1 h-6 w-px bg-fc-surface" aria-hidden="true"></span>
-	<IconButton variant="ghost" aria-label={t('tool.front')} disabled={!single} onclick={() => single && editor.reorder(single, 'front')}>
+	<span class="mx-1 h-6 w-0.5 rounded-fc-pill bg-fc-surface" aria-hidden="true"></span>
+	<IconButton
+		variant="ghost"
+		aria-label={t('tool.front')}
+		tooltip={hint(t('tool.front'), 'mod+shift+]')}
+		disabled={!picked}
+		onclick={() => actions.reorder('front')}
+	>
 		<Icon icon={tools.front} size={18} />
 	</IconButton>
-	<IconButton variant="ghost" aria-label={t('tool.back')} disabled={!single} onclick={() => single && editor.reorder(single, 'back')}>
+	<IconButton
+		variant="ghost"
+		aria-label={t('tool.back')}
+		tooltip={hint(t('tool.back'), 'mod+shift+[')}
+		disabled={!picked}
+		onclick={() => actions.reorder('back')}
+	>
 		<Icon icon={tools.back} size={18} />
 	</IconButton>
-	<IconButton variant="ghost" aria-label={t('tool.undo')} disabled={!editor.canUndo} onclick={() => editor.undo()}>
+	<IconButton
+		variant="ghost"
+		aria-label={t('tool.undo')}
+		tooltip={hint(t('tool.undo'), 'mod+z')}
+		disabled={!editor.canUndo}
+		onclick={() => editor.undo()}
+	>
 		<Icon icon={tools.undo} size={18} />
 	</IconButton>
-	<IconButton variant="ghost" aria-label={t('tool.redo')} disabled={!editor.canRedo} onclick={() => editor.redo()}>
+	<IconButton
+		variant="ghost"
+		aria-label={t('tool.redo')}
+		tooltip={hint(t('tool.redo'), 'mod+shift+z')}
+		disabled={!editor.canRedo}
+		onclick={() => editor.redo()}
+	>
 		<Icon icon={tools.redo} size={18} />
 	</IconButton>
 	<IconButton
 		variant="ghost-danger"
 		aria-label={t('tool.delete')}
+		tooltip={hint(t('tool.delete'), 'delete')}
 		disabled={!picked}
 		data-testid="tool-delete"
 		onclick={() => editor.remove(editor.selection)}
 	>
 		<Icon icon={icons.remove} size={18} />
+	</IconButton>
+	<span class="flex-1" aria-hidden="true"></span>
+	<IconButton
+		variant="ghost"
+		aria-label={t('menu.shortcuts')}
+		tooltip={hint(t('menu.shortcuts'), '?')}
+		data-testid="shortcuts-open"
+		onclick={onhelp}
+	>
+		<Icon icon={icons.help} size={18} />
 	</IconButton>
 </div>

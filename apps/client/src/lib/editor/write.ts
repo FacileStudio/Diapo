@@ -23,7 +23,7 @@ function clean(key: string, value: unknown): unknown {
 	if (key === 'step' || key === 'track') return Math.max(0, Math.round(Number(value) || 0));
 	if (key === 'opacity' || key === 'volume') return Math.max(0, Math.min(1, Number(value) || 0));
 	if (key === 'points') return Array.isArray(value) ? value.map((n) => clampNumber(Number(n))) : undefined;
-	if (key === 'style') return cleanStyle(value);
+	if (key === 'style') return cleanStyle(value, 'full');
 	if (key === 'from' || key === 'to') return cleanBinding(value);
 	if (key === 'locked' || key === 'fixed_duration') return typeof value === 'boolean' ? value : undefined;
 	if (key === 'html' && typeof value === 'string') return value.slice(0, LIMITS.htmlChars);
