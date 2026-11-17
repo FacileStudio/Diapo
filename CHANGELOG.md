@@ -4,6 +4,20 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-17
+
+### Added
+
+- A visual slide editor: a slide rail, a stage where you select, move, resize and rotate shapes with snapping, a toolbar to insert text, shapes, pictures and video, an inspector, and speaker notes. Text and notes are rich text.
+- Live co-editing: everyone on a deck sees the others' edits, presence and selections as they happen, through a room at `GET /api/decks/{id}/ws` (salon).
+- Decks are planche documents ([planche](https://github.com/FacileStudio/planche)). The `diapo` command line and MCP read and write the planche text view; markdown is still accepted on write and converted.
+- `facile-scene` feature `planche`: compiles a planche deck to the same HTML, so preview, present, PDF, PowerPoint, thumbnails and video export keep working.
+
+### Changed
+
+- The web editor no longer shows or edits markdown.
+- An existing deck converts to planche the first time it opens; its markdown stays in the revision history. A deck's dark or auto colour scheme is not carried over.
+
 ## [0.2.1] - 2026-11-16
 
 ### Fixed
