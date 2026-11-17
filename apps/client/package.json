@@ -33,7 +33,7 @@
 		"@facile/mise-en-scene": "github:FacileStudio/mise-en-scene#v0.2.2",
 		"@facile/muse": "github:FacileStudio/muse#v0.33.1",
 		"@facile/planche": "github:FacileStudio/planche#v0.3.1",
-		"@facile/salon": "github:FacileStudio/salon#v0.1.0",
+		"@facile/salon": "github:FacileStudio/salon#v0.1.1",
 		"lib0": "^0.2.120",
 		"y-protocols": "^1.0.7",
 		"y-websocket": "^3.1.0",

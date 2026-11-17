@@ -8,6 +8,7 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ### Changed
 
+- salon v0.1.1: on a restart the server now waits for every open deck's close frame, so clients see 1013 and reconnect cleanly instead of 1006.
 - Menus show shortcuts in their own right-aligned column, and the shape menu groups layer order, align and distribute, and text alignment into submenus (muse v0.33.1, which also shows an unset colour as an empty swatch instead of black).
 - planche v0.3.1. A shape's `track` stacks it above lower tracks, in the editor and in the presented deck.
 - The compiled deck carries a video or audio shape's `media_in` and `volume` as Clap's `data-in` and `data-volume`.
