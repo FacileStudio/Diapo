@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { Blob } from '@facile/blob';
-	import { Button, Icon, IconButton, Menu, icons, type MenuEntry } from '@facile/muse';
+	import { Button, ConnectionHint, Icon, IconButton, icons } from '@facile/muse';
 	import { shareIcon } from '$lib/brand';
-	import type { SaveStatus } from '$lib/deck/saver.svelte';
+	import type { DeckEditor } from '$lib/editor/types';
 	import { t } from '$lib/i18n';
-	import type { AppKey } from '$lib/i18n/messages';
+	import PresenceBar from './editor/PresenceBar.svelte';
 
 	let {
 		id,
 		title,
-		status,
-		inserts,
+		editor,
+		previewing,
 		assistant,
 		bulleOpen,
 		onrename,
+		onpreview,
 		onassets,
 		onshare,
 		onexport,
@@ -21,36 +22,19 @@
 	}: {
 		id: string;
 		title: string;
-		status: SaveStatus;
-		/** The ready-made scenes of the insert menu. */
-		inserts: MenuEntry[];
+		editor: DeckEditor;
+		/** Whether the compiled preview replaces the stage. */
+		previewing: boolean;
 		/** The name of the person's Bulle assistant. */
 		assistant: string;
 		bulleOpen: boolean;
 		onrename: (title: string) => void;
+		onpreview: () => void;
 		onassets: () => void;
 		onshare: () => void;
 		onexport: () => void;
 		ontogglebulle: () => void;
 	} = $props();
-
-	const STATUS: Record<SaveStatus, AppKey> = {
-		clean: 'save.clean',
-		dirty: 'save.dirty',
-		saving: 'save.saving',
-		invalid: 'save.invalid',
-		conflict: 'save.conflict',
-		failed: 'save.failed'
-	};
-
-	const DOT: Record<SaveStatus, string> = {
-		clean: 'bg-fc-success',
-		dirty: 'bg-fc-fg-muted',
-		saving: 'bg-fc-fg-muted motion-safe:animate-pulse',
-		invalid: 'bg-fc-danger',
-		conflict: 'bg-fc-warning',
-		failed: 'bg-fc-danger'
-	};
 
 	let draft = $state('');
 
@@ -84,23 +68,21 @@
 			if (event.key === 'Enter') event.currentTarget.blur();
 		}}
 	/>
-	<span
-		class="relative flex items-center gap-2 px-2 text-fc-xs whitespace-nowrap text-fc-fg-muted"
-		role="status"
-		data-testid="save-status"
-		data-status={status}
-	>
-		<span class="size-2 shrink-0 rounded-fc-full {DOT[status]}" aria-hidden="true"></span>
-		<span class="max-sm:sr-only">{t(STATUS[status])}</span>
-	</span>
+	<ConnectionHint state={editor.connection} data-testid="connection" data-state={editor.connection} />
 	<div class="ml-auto flex shrink-0 items-center gap-1">
-		<Menu label={t('insert.label')} items={inserts} align="end">
-			{#snippet trigger()}
-				<span class="flex items-center gap-2">
-					<Icon icon={icons.plus} size={16} /><span class="hidden md:inline">{t('insert.label')}</span>
-				</span>
-			{/snippet}
-		</Menu>
+		<PresenceBar {editor} />
+		<Button
+			variant="ghost"
+			size="md"
+			class="h-11 {previewing ? 'bg-fc-surface' : ''}"
+			icon={icons.eye}
+			aria-label={t('preview.title')}
+			aria-pressed={previewing}
+			data-testid="preview-toggle"
+			onclick={onpreview}
+		>
+			<span class="hidden md:inline">{t('preview.title')}</span>
+		</Button>
 		<IconButton variant="ghost" aria-label={t('assets.title')} onclick={onassets}>
 			<Icon icon={icons.folder} size={18} />
 		</IconButton>

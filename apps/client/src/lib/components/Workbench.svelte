@@ -1,74 +1,57 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
 	import { page } from '$app/state';
-	import { Tabs, toast } from '@facile/muse';
+	import { Spinner, toast } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { assistant as askAssistant, DEFAULT_ASSISTANT, rememberSidebar, sidebarOpen } from '$lib/bulle';
 	import { watchDeck } from '$lib/deck/events';
-	import { outline, sceneAt, type SceneOutline } from '$lib/deck/outline';
 	import { Playhead } from '$lib/deck/playhead.svelte';
-	import { Saver } from '$lib/deck/saver.svelte';
-	import { PLACEHOLDER_IMAGE, TEMPLATES, type Template } from '$lib/deck/templates';
+	import { createDeckEditor } from '$lib/editor/deck.svelte';
+	import { deckAssetUrl } from '$lib/editor/room';
 	import { t } from '$lib/i18n';
 	import { session } from '$lib/session.svelte';
 	import type { Asset, Deck } from '$lib/types';
 	import AssetsPanel from './AssetsPanel.svelte';
 	import BulleSidebar from './BulleSidebar.svelte';
-	import ConflictBanner from './ConflictBanner.svelte';
+	import ConnectionBanner from './editor/ConnectionBanner.svelte';
+	import Inspector from './editor/Inspector.svelte';
+	import NotesPanel from './editor/NotesPanel.svelte';
+	import SlideRail from './editor/SlideRail.svelte';
+	import Stage from './editor/Stage.svelte';
+	import Toolbar from './editor/Toolbar.svelte';
 	import EditorHeader from './EditorHeader.svelte';
-	import ErrorList from './ErrorList.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import PreviewPane from './PreviewPane.svelte';
-	import SceneStrip from './SceneStrip.svelte';
 	import ShareDialog from './ShareDialog.svelte';
-	import SourceEditor from './SourceEditor.svelte';
 
 	let { deck }: { deck: Deck } = $props();
 
 	const id = untrack(() => deck.id);
 	const owner = session.user?.email ?? '';
+	const user = { name: session.user?.name || owner };
+	const editor = createDeckEditor(id, user);
 	const playhead = new Playhead();
-	const saver = new Saver({
-		put: (source, rev) => backend.save(id, source, rev),
-		get: () => backend.deck(id),
-		onreplace: (source) => {
-			editor?.replace(source);
-			text = source;
-		}
-	});
-	saver.open(untrack(() => deck));
 
-	let editor = $state<ReturnType<typeof SourceEditor>>();
 	let title = $state(untrack(() => deck.title));
-	let text = $state(untrack(() => deck.source));
-	let line = $state(1);
-	let tab = $state('source');
+	let rev = $state(untrack(() => deck.rev));
 	let touches = $state(0);
-	let stripStamp = $state(`${saver.rev}.0`);
 	let assets = $state<Asset[]>([]);
 	let assetsOpen = $state(false);
 	let shareOpen = $state(false);
 	let exportOpen = $state(false);
+	let previewing = $state(false);
+	let notesOpen = $state(true);
 	let assistant = $state(DEFAULT_ASSISTANT.name);
 	let bulleOpen = $state(sidebarOpen(owner));
 
-	const plan = $derived(outline(text));
-	const scene = $derived(sceneAt(plan.scenes, line));
-	const ratio = $derived(plan.width / plan.height);
+	const ratio = $derived(editor.size.width / editor.size.height);
+	const stamp = $derived(`${rev}.${touches}`);
 	const loadAssets = () => backend.assets(id).then((found) => (assets = found));
 	const failed = (error: unknown) => toast.danger(error instanceof Error ? error.message : t('error.generic'));
 
 	$effect(() => {
-		const index = scene;
+		const index = Math.max(0, editor.slides.findIndex((slide) => slide.id === editor.current));
 		untrack(() => playhead.focus(index));
-	});
-
-	const stamp = $derived(`${saver.rev}.${touches}`);
-
-	$effect(() => {
-		const next = stamp;
-		const timer = setTimeout(() => (stripStamp = next), 1200);
-		return () => clearTimeout(timer);
 	});
 
 	$effect(() => rememberSidebar(owner, bulleOpen));
@@ -78,10 +61,7 @@
 	void askAssistant().then((found) => (assistant = found.name));
 	void loadAssets().catch(() => undefined);
 
-	onDestroy(() => {
-		void saver.flush();
-		saver.dispose();
-	});
+	onDestroy(() => editor.destroy());
 
 	async function refresh() {
 		try {
@@ -92,17 +72,11 @@
 		}
 	}
 
-	function changed(rev: number, first: boolean) {
-		if (!first && saver.touched(rev)) {
-			touches += 1;
-			void refresh();
-		}
-		void saver.remote(rev).catch(failed);
-	}
-
-	function edited(source: string) {
-		text = source;
-		saver.edit(source);
+	function changed(next: number, first: boolean) {
+		if (first) return;
+		rev = next;
+		touches += 1;
+		void refresh();
 	}
 
 	async function rename(next: string) {
@@ -113,94 +87,66 @@
 		}
 	}
 
-	function insert(template: Template) {
-		const image = assets.find((asset) => asset.mime.startsWith('image/'));
-		const body = template.scene(image?.name ?? PLACEHOLDER_IMAGE);
-		editor?.insertAfter(plan.scenes[scene]?.to ?? 1, `\n${body}`);
+	function place(asset: Asset) {
+		const kind = asset.mime.startsWith('video/') ? 'video' : 'image';
+		editor.insert(kind, undefined, asset.name);
+		assetsOpen = false;
+		previewing = false;
 	}
-
-	function pick(target: SceneOutline) {
-		tab = 'source';
-		editor?.reveal(Math.min(target.from + 1, target.to));
-	}
-
-	const inserts = $derived(
-		TEMPLATES.map((template) => ({ label: t(template.label), onselect: () => insert(template) }))
-	);
-	const tabs = $derived([
-		{ id: 'source', label: t('editor.source') },
-		{ id: 'preview', label: t('preview.title') }
-	]);
 </script>
 
 <svelte:head><title>{title} · Diapo</title></svelte:head>
 
-<svelte:window
-	onbeforeunload={(event) => {
-		if (saver.status !== 'clean') event.preventDefault();
-	}}
-/>
-
-<div class="flex h-full min-h-0 flex-col gap-3 p-3 {bulleOpen ? 'lg:pr-[412px]' : ''}">
+<div
+	class="flex h-full min-h-0 flex-col gap-3 p-3 {bulleOpen ? 'lg:pr-[412px]' : ''}"
+	data-testid="editor"
+	data-connection={editor.connection}
+	data-synced={editor.synced}
+>
 	<EditorHeader
 		{id}
 		{title}
-		status={saver.status}
-		{inserts}
+		{editor}
+		{previewing}
 		{assistant}
 		{bulleOpen}
 		onrename={rename}
+		onpreview={() => (previewing = !previewing)}
 		onassets={() => (assetsOpen = true)}
 		onshare={() => (shareOpen = true)}
 		onexport={() => (exportOpen = true)}
 		ontogglebulle={() => (bulleOpen = !bulleOpen)}
 	/>
-	{#if saver.status === 'conflict'}
-		<ConflictBanner
-			onreload={() => void saver.reload().catch(failed)}
-			onoverwrite={() => void saver.overwrite().catch(failed)}
-		/>
-	{/if}
-	<Tabs items={tabs} value={tab} onChange={(next) => (tab = next)} label={t('editor.views')} class="lg:hidden" />
-	<div class="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-		<div
-			class="min-h-0 flex-col overflow-hidden rounded-fc-lg bg-fc-component lg:flex {tab === 'source'
-				? 'flex'
-				: 'hidden'}"
-		>
-			<div class="min-h-0 flex-1">
-				<SourceEditor
-					bind:this={editor}
-					value={deck.source}
-					errors={saver.errors}
-					label={t('editor.source')}
-					onchange={edited}
-					oncursor={(next) => (line = next)}
-				/>
-			</div>
-			{#if saver.errors.length > 0}
-				<ErrorList errors={saver.errors} onpick={(target) => editor?.reveal(target)} />
+	<ConnectionBanner {editor} />
+	<div class="grid min-h-0 flex-1 gap-3 lg:grid-cols-[13rem_minmax(0,1fr)_16rem]">
+		<SlideRail {editor} {assets} />
+		<div class="flex min-h-0 flex-col gap-3 max-lg:min-h-[60vh]">
+			{#if previewing}
+				<div class="min-h-0 flex-1 overflow-hidden rounded-fc-lg bg-fc-component">
+					<PreviewPane src={backend.frameUrl(id, { stamp })} {ratio} {playhead} />
+				</div>
+			{:else}
+				<Toolbar {editor} {assets} onfiles={() => (assetsOpen = true)} />
+				<div class="relative min-h-0 flex-1 overflow-hidden rounded-fc-lg bg-fc-component">
+					<Stage {editor} src={(name) => deckAssetUrl(id, name)} />
+					{#if !editor.synced || editor.stopped}
+						<div
+							class="absolute inset-0 flex items-center justify-center gap-2 bg-fc-component/70 text-fc-sm text-fc-fg-muted"
+							data-testid="read-only"
+						>
+							{#if !editor.stopped}<Spinner />{t('room.syncing')}{/if}
+						</div>
+					{/if}
+				</div>
+				<NotesPanel {editor} {user} bind:open={notesOpen} />
 			{/if}
 		</div>
-		<div
-			class="min-h-0 overflow-hidden rounded-fc-lg bg-fc-component lg:block {tab === 'preview' ? 'block' : 'hidden'}"
-		>
-			<PreviewPane src={backend.frameUrl(id, { stamp })} {ratio} {playhead} />
-		</div>
+		<Inspector {editor} />
 	</div>
-	<SceneStrip
-		{id}
-		stamp={stripStamp}
-		scenes={plan.scenes}
-		compiled={playhead.info?.scenes.length ?? 0}
-		{ratio}
-		current={scene}
-		onpick={pick}
-	/>
 </div>
 
-<AssetsPanel bind:open={assetsOpen} {id} bind:assets />
-<ShareDialog bind:open={shareOpen} {id} {title} width={plan.width} height={plan.height} />
+<AssetsPanel bind:open={assetsOpen} {id} bind:assets oninsert={place} />
+<ShareDialog bind:open={shareOpen} {id} {title} width={editor.size.width} height={editor.size.height} />
 <ExportDialog bind:open={exportOpen} {id} />
 <BulleSidebar
 	bind:open={bulleOpen}

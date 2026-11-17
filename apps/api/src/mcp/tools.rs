@@ -5,18 +5,22 @@ use super::{Context, delete, export, read, write};
 const LIST: &str = "The decks you reach, newest first, 50 at a time by default: your personal decks and those \
 of your spaces, or one space with space_id. Call it to find a deck id; pass next_cursor as cursor for the next \
 window.";
-const GET: &str = "One deck: its whole source in the scene format, its rev, its scene count and its asset \
-names. Call it before any write: diapo_write_deck and diapo_edit_deck need the rev it answers.";
-const CREATE: &str = "A new deck from a source in the scene format, at rev 1. Call it once per deck: each call \
-adds another deck. An invalid source is refused with the line of each problem.";
-const WRITE: &str = "Replaces the whole source of a deck. Call it to rewrite a deck; it needs the rev \
-diapo_get_deck answered and is refused, changing nothing, when the deck moved on or the source is invalid. \
+const GET: &str = "One deck: its whole source as a planche projection (each slide is a top-level frame \
+block holding positioned shapes), its rev, its slide count and its asset names. Call it before any write: \
+diapo_write_deck and diapo_edit_deck need the rev it answers.";
+const CREATE: &str = "A new deck at rev 1 from a planche projection, or from a source in the older scene markdown, \
+which is converted to planche. Call it once per deck: each call adds another deck. An invalid source is refused \
+with the line of each problem.";
+const WRITE: &str = "Replaces the whole source of a deck with a planche projection (scene markdown is still \
+accepted and converted). Call it to rewrite a deck; it needs the rev diapo_get_deck answered and is refused, \
+changing nothing, when the deck moved on or the source is invalid. People editing the deck see the change live. \
 The old source stays in the deck's revisions.";
-const EDIT: &str = "Replaces one exact string in a deck's source. Call it for a small change. old_string must \
-be in the source exactly once: zero or several matches are refused, so add surrounding text until it names \
-one place. It needs the rev diapo_get_deck answered.";
-const GUIDE: &str = "The scene format reference: frontmatter keys, layouts, step reveals, timelines, assets and \
-the errors the parser answers. Call it once before you write or edit a deck.";
+const EDIT: &str = "Replaces one exact string in a deck's source, the planche projection diapo_get_deck answers. \
+Call it for a small change. old_string must be in the source exactly once: zero or several matches are refused, \
+so add surrounding text until it names one place. It needs the rev diapo_get_deck answered.";
+const GUIDE: &str = "The deck format reference: the planche projection a deck is stored as (front matter, frame \
+blocks as slides, shapes, steps, timing, assets), then the older scene markdown that writes still accept. Call it \
+once before you write or edit a deck.";
 const EXPORT: &str = "Exports a deck to a file and answers a download link that works for one hour without \
 signing in: html (one offline file), pptx (editable PowerPoint), pdf (a page per slide, or per step with steps) \
 or mp4 (a video). It waits up to 30 seconds; a slower export answers its job id: call again with job_id to \

@@ -72,11 +72,11 @@ pub struct GetOut {
     pub space_id: Option<String>,
     /// The revision to name in diapo_write_deck or diapo_edit_deck.
     pub rev: i64,
-    /// The whole deck, in the scene format.
+    /// The whole deck, as its planche projection.
     pub source: String,
     /// True when the source was cut to fit: never write it back whole, use diapo_edit_deck.
     pub truncated: bool,
-    /// How many scenes the deck has.
+    /// How many slides (scenes) the deck has.
     pub scenes: usize,
     /// The asset names the source may load, such as `assets/chart.png`.
     pub assets: Vec<String>,
@@ -100,7 +100,7 @@ pub async fn get(ctx: Context, call: Call, input: GetIn) -> Result<Answer<GetOut
         rev: deck.rev,
         source: source.to_owned(),
         truncated,
-        scenes: scene::parse(&deck.source).map_or(0, |project| project.scenes().len()),
+        scenes: scene::planche::project(&deck.source).map_or(0, |project| project.scenes().len()),
         assets: names,
         trashed: deck.trashed_at.is_some(),
         url: ctx.deck_url(deck.id),
@@ -119,7 +119,10 @@ pub struct GuideOut {
     pub guide: String,
 }
 
-/// `diapo_format_guide`: the scene format reference, `scene::FORMAT_GUIDE`.
+/// `diapo_format_guide`: the planche guide, `scene::planche::GUIDE`, then the scene format
+/// reference, `scene::FORMAT_GUIDE`. Both, because a write still accepts scene markdown and a
+/// locked `html` shape holds compiled scene HTML.
 pub async fn guide(_call: Call, _input: GuideIn) -> Result<Answer<GuideOut>, ToolError> {
-    Ok(GuideOut { guide: scene::FORMAT_GUIDE.to_owned() }.into())
+    let guide = format!("{}\n\n# Legacy scene markdown\n\n{}", scene::planche::GUIDE, scene::FORMAT_GUIDE);
+    Ok(GuideOut { guide }.into())
 }

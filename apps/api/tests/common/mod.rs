@@ -7,6 +7,7 @@ pub mod http;
 pub mod mcp;
 pub mod upload;
 pub mod worker;
+pub mod ysync;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -68,7 +69,8 @@ pub async fn app_with(pool: PgPool, vars: &[(&str, &str)]) -> App {
     let mut pairs = vec![("DATABASE_URL", "postgres://unused/x"), ("PUBLIC_URL", HOST)];
     pairs.extend_from_slice(vars);
     let config = Config::from_vars(&Vars::from_pairs(pairs)).unwrap();
-    let kits = Kits::new(&config, &pool).await.unwrap();
+    let hub = api::modules::rooms::Hub::default();
+    let kits = Kits::new(&config, &pool, &hub).await.unwrap();
     let data = data_dir();
     let state = AppState {
         issuer: Arc::from(ISSUER),
@@ -76,7 +78,7 @@ pub async fn app_with(pool: PgPool, vars: &[(&str, &str)]) -> App {
         thumbs: api::captures::thumbs::Thumbs::after(std::time::Duration::from_millis(50)),
         data_dir: Arc::new(data),
         client_dir: Arc::new(client_dir()),
-        ..api::server::state(&config, pool.clone(), &kits)
+        ..api::server::state(&config, pool.clone(), &kits, hub)
     };
     let router = api::router::build_router(state.clone(), &kits, None).unwrap();
     App { router, state, kits, pool }

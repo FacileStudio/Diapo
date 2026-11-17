@@ -19,11 +19,11 @@ entry at the end of this page. Until both exist, run the CLI from a checkout:
 
 | Command | Does |
 |---|---|
-| `diapo new <name>` | Creates the folder `<name>` with a starter `diapo.md` and `assets/` |
+| `diapo new <name>` | Creates the folder `<name>` with a one-slide planche `diapo.md` and an empty `assets/` |
 | `diapo serve [dir] [-p port]` | Serves the deck on `http://localhost:3030` and reloads the browser on every change |
 | `diapo build [dir] [-o file]` | Writes one offline HTML file, every asset inlined. Default: `<folder name>.html` |
 | `diapo check [dir]` | Prints every problem as `file:line: message` and exits 1 when there is one |
-| `diapo guide` | Prints the format reference, the text of [format.md](format.md) |
+| `diapo guide` | Prints the format reference, the text of [planche.md](planche.md), and a note on legacy markdown |
 | `diapo login [server]` | Signs in and stores the token |
 | `diapo logout` | Ends the session and removes the stored token |
 | `diapo whoami` | Prints the signed-in account |
@@ -56,6 +56,30 @@ diapo new talk
 diapo serve talk
 diapo build talk        # writes talk.html
 ```
+
+`diapo.md` holds the deck as a planche projection ([planche.md](planche.md)): front matter,
+then one `frame` fence per slide, holding one fence per shape in frame pixels.
+
+`````text
+---
+planche: 1
+size: 1920x1080
+---
+
+````frame id="slide1" x="0" y="0" w="1920" h="1080" name="Talk" order="a0"
+```text id="title1" x="160" y="420" w="1600" h="240" z="a0"
+# Talk
+```
+
+```image id="chart" x="1100" y="400" w="660" h="500" z="a1" asset="assets/chart.svg"
+```
+````
+`````
+
+A `diapo.md` in the older scene format ([format.md](format.md)) still works: `check`, `build`
+and `serve` read either format, and `push` sends it as it is for the server to convert. The
+server then holds the projection, so the next `pull` replaces the local file with it. Because
+the file is unchanged since the push, that pull is not a conflict.
 
 `serve` compiles the deck on each request, serves the folder's files beside it and watches the
 folder. A problem in the file is printed in the terminal as `talk/diapo.md:12: message` and

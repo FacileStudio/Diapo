@@ -69,6 +69,13 @@ pub enum ErrorKind {
         /// The URL as written.
         url: String,
     },
+    /// A planche projection its reader refuses.
+    #[cfg(feature = "planche")]
+    #[error("{message}")]
+    Projection {
+        /// What is wrong and how to fix it.
+        message: String,
+    },
     /// An asset path that is absolute or leaves the project folder.
     #[error("asset path `{path}` must be relative and stay inside the project folder")]
     BadAssetPath {

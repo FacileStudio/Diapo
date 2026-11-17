@@ -25,6 +25,8 @@ mod marker;
 mod model;
 mod note;
 mod parse;
+#[cfg(feature = "planche")]
+pub mod planche;
 #[cfg(feature = "pptx")]
 pub mod pptx;
 mod references;

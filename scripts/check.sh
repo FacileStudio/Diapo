@@ -24,6 +24,8 @@ echo "==> crates/scene, apps/api, apps/cli"
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
+cargo clippy -p facile-scene --features planche --all-targets --locked -- -D warnings
+cargo test -p facile-scene --features planche --locked
 
 echo "==> apps/client"
 (

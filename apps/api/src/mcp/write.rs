@@ -16,14 +16,14 @@ pub struct Written {
     pub title: String,
     /// The deck's new revision: name it in the next write.
     pub rev: i64,
-    /// How many scenes the deck has now.
+    /// How many slides (scenes) the deck has now.
     pub scenes: usize,
     /// The page a person opens to see the deck.
     pub url: String,
 }
 
 fn written(ctx: &Context, deck: Deck) -> Answer<Written> {
-    let scenes = scene::parse(&deck.source).map_or(0, |project| project.scenes().len());
+    let scenes = scene::planche::project(&deck.source).map_or(0, |project| project.scenes().len());
     Written { id: deck.id.to_string(), title: deck.title, rev: deck.rev, scenes, url: ctx.deck_url(deck.id) }.into()
 }
 
@@ -32,7 +32,8 @@ fn written(ctx: &Context, deck: Deck) -> Answer<Written> {
 pub struct CreateIn {
     /// The deck title, at most 200 characters.
     pub title: String,
-    /// The whole deck, in the scene format; a one-slide starter when absent.
+    /// The whole deck as a planche projection (scene markdown is converted); a one-slide starter
+    /// when absent.
     pub source: Option<String>,
     /// The space; a personal deck when absent.
     pub space_id: Option<String>,
@@ -50,7 +51,7 @@ pub async fn create(ctx: Context, call: Call, input: CreateIn) -> Result<Answer<
 pub struct WriteIn {
     /// The deck id.
     pub deck_id: String,
-    /// The whole new source, in the scene format.
+    /// The whole new source as a planche projection (scene markdown is converted).
     pub source: String,
     /// The rev diapo_get_deck answered.
     pub rev: i64,

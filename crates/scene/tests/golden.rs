@@ -1,29 +1,14 @@
 //! Golden tests: each fixture compiles to the checked-in document, and each invalid fixture
 //! reports the checked-in problems. `UPDATE_GOLDEN=1 cargo test -p facile-scene` rewrites them.
 
+mod support;
+
 use std::path::{Path, PathBuf};
+
+use support::{body_of, golden};
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures")
-}
-
-fn cut(text: &str, open: &str, close: &str, label: &str) -> String {
-    let start = text.find(open).unwrap() + open.len();
-    let end = start + text[start..].find(close).unwrap();
-    format!("{}{label}{}", &text[..start], &text[end..])
-}
-
-fn body_of(html: &str) -> String {
-    let styled = cut(html, "</title>\n<style>", "</style>", "/* theme */");
-    cut(&styled, "<script>", "</script>\n</head>", "/* runtime */")
-}
-
-fn golden(path: &Path, actual: &str) {
-    if std::env::var_os("UPDATE_GOLDEN").is_some() {
-        std::fs::write(path, actual).unwrap();
-    }
-    let expected = std::fs::read_to_string(path).unwrap_or_default();
-    assert!(expected == actual, "{} differs from the compiled output:\n{actual}", path.display());
 }
 
 #[test]

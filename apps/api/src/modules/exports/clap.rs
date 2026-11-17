@@ -84,7 +84,7 @@ async fn answered(response: reqwest::Response) -> Result<reqwest::Response> {
 }
 
 async fn form(state: &AppState, deck: &DeckRow) -> Result<Form> {
-    let project = scene::parse(&deck.source).map_err(|errors| Error::failed(errors.to_string()))?;
+    let project = scene::planche::project(&deck.source).map_err(|errors| Error::failed(errors.to_string()))?;
     let size = project.config().size;
     let spec = serde_json::json!({"width": size.width, "height": size.height, "fps": FPS});
     let html = scene::compile(&project, &scene::Options::new());

@@ -26,7 +26,7 @@ impl Captures {
     }
 
     async fn stage(&self, state: &AppState, deck: &DeckRow, staged: &Layout, (kind, ask): (Kind, Ask)) -> Result<()> {
-        let project = scene::parse(&deck.source).map_err(|errors| Error::failed(errors.to_string()))?;
+        let project = scene::planche::project(&deck.source).map_err(|errors| Error::failed(errors.to_string()))?;
         tokio::fs::create_dir_all(self.staging()).await.map_err(failed)?;
         tokio::fs::create_dir_all(self.dir()).await.map_err(failed)?;
         tokio::fs::create_dir(&staged.dir).await.map_err(failed)?;

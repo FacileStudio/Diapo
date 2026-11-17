@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { chromium, type Browser, type Page } from 'playwright-core';
-import { api, appendSource, openPage, stageFrame, waitData, type Stack } from './pages';
+import { api, openPage, stageFrame, waitData, waitSource, type Stack } from './pages';
 import { startStack } from './stack';
 
 let stack: Stack;
@@ -8,7 +8,7 @@ let browser: Browser;
 let editor: Page;
 let id = '';
 
-const SECOND = '\n---\n\n## Deuxième\n\n- Un {step=1}\n- Deux {step=2}\n\n<!-- Ralentir ici. -->\n';
+const TYPED = 'Bonjour e2e';
 
 beforeAll(async () => {
 	stack = await startStack();
@@ -23,17 +23,20 @@ afterAll(async () => {
 const shown = async (page: Page, testid: string, selector: string) =>
 	(await stageFrame(page, testid)).$eval(selector, (el) => getComputedStyle(el).visibility);
 
-test('a deck is created from the list and opens in the editor', async () => {
+const slides = (page: Page) => page.getByTestId('slide-thumb');
+
+test('a deck is created from the list and opens in the slide editor, with no markdown in sight', async () => {
 	editor = await openPage(browser, stack, '/');
 	await editor.getByTestId('new-deck').click();
 	await editor.getByLabel('Titre').fill('Démo e2e');
 	await editor.getByRole('button', { name: 'Créer' }).click();
 	await editor.waitForURL(/\/decks\/[^/]+$/);
 	id = new URL(editor.url()).pathname.split('/').pop() ?? '';
-	await waitData(editor, 'save-status', 'status', 'clean');
-	await waitData(editor, 'preview', 'scene', 0);
-	expect(await editor.getByTestId('scene-count').textContent()).toContain('2 scènes');
-	expect(await editor.locator('.cm-content').textContent()).toContain('Une idée par diapositive.');
+	await waitData(editor, 'editor', 'synced', 'true');
+	expect(await editor.getByTestId('slide-count').textContent()).toContain('2 diapositives');
+	expect(await slides(editor).first().textContent()).toContain('Démo e2e');
+	expect(await editor.locator('.cm-content, [data-testid="source-editor"]').count()).toBe(0);
+	expect((await api<{ source: string }>(stack, `/decks/${id}`)).source).toMatch(/^---\nplanche: 1\n/);
 });
 
 test('every control of the editor header has the same height', async () => {
@@ -46,54 +49,80 @@ test('every control of the editor header has the same height', async () => {
 	expect([...new Set(heights)]).toEqual([44]);
 });
 
-test('typing a second slide saves it and the preview follows the caret', async () => {
-	await appendSource(editor, SECOND);
-	await waitData(editor, 'save-status', 'status', 'clean');
+test('a new slide with a text box and a note persists across a reload, and the preview shows it', async () => {
+	await slides(editor).nth(1).click();
+	await editor.getByTestId('slide-add').click();
+	expect(await editor.getByTestId('slide-count').textContent()).toContain('3 diapositives');
+	expect(await slides(editor).nth(2).getAttribute('aria-current')).toBe('true');
+	await editor.getByTestId('tool-text').click();
+	await editor.locator('.stage-slide .ProseMirror[contenteditable="true"]').click();
+	await editor.keyboard.type(TYPED);
+	await editor.getByTestId('notes-editor').locator('.ProseMirror').click();
+	await editor.keyboard.type('À moi.');
+	await waitSource(stack, id, 'À moi.');
+	expect(await waitSource(stack, id, TYPED)).toContain('order=');
+
+	await editor.reload();
+	await waitData(editor, 'editor', 'synced', 'true');
+	expect(await editor.getByTestId('slide-count').textContent()).toContain('3 diapositives');
+	expect(await slides(editor).nth(2).textContent()).toContain(TYPED);
+	await slides(editor).nth(2).click();
+	await editor.getByTestId('notes-editor').getByText('À moi.').waitFor({ timeout: 5_000 });
+
+	await editor.getByTestId('preview-toggle').click();
 	await waitData(editor, 'preview', 'scene', 2);
-	await waitData(editor, 'preview', 'step', 6);
-	expect(await (await stageFrame(editor, 'preview')).locator('.scene.is-active h2').textContent()).toBe('Deuxième');
-	expect(await editor.getByTestId('scene-count').textContent()).toContain('3 scènes');
-	expect(await editor.getByTestId('position').textContent()).toContain('Scène 3 sur 3');
-	expect((await api<{ source: string }>(stack, `/decks/${id}`)).source).toContain('## Deuxième');
+	await (await stageFrame(editor, 'preview')).getByText(TYPED).waitFor({ timeout: 10_000 });
+	await editor.getByTestId('preview-toggle').click();
+	await editor.getByTestId('toolbar').waitFor();
 });
 
-test('a source the parser refuses shows its line, and saves again once fixed', async () => {
-	await appendSource(editor, '\n---\ncolour: red\n---\n\nFin\n');
-	await waitData(editor, 'save-status', 'status', 'invalid');
-	expect(await editor.getByTestId('scene-errors').textContent()).toMatch(/Ligne \d+/);
-	await editor.keyboard.press('Control+z');
-	await waitData(editor, 'save-status', 'status', 'clean');
-	expect(await editor.getByTestId('scene-errors').count()).toBe(0);
+test('a slide moves with the keyboard and comes back', async () => {
+	await slides(editor).nth(2).focus();
+	await editor.keyboard.press('Alt+ArrowUp');
+	await slides(editor).nth(1).getByText(TYPED).waitFor({ timeout: 5_000 });
+	await slides(editor).nth(1).focus();
+	await editor.keyboard.press('Alt+ArrowDown');
+	await slides(editor).nth(2).getByText(TYPED).waitFor({ timeout: 5_000 });
 });
 
-test('an outside write reloads a clean editor and stops a dirty one in a conflict', async () => {
-	const theirs = await api<{ source: string; rev: number }>(stack, `/decks/${id}`);
-	const body = { source: theirs.source.replace('Deuxième', 'Seconde'), rev: theirs.rev };
-	const { rev } = await api<{ rev: number }>(stack, `/decks/${id}/source`, { method: 'PUT', body });
-	await editor.locator('.cm-content').getByText('## Seconde').waitFor({ timeout: 10_000 });
+test('two people on one deck see each other and each other’s edits live', async () => {
+	const other = await openPage(browser, stack, `/decks/${id}`);
+	await waitData(other, 'editor', 'synced', 'true');
+	await editor.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
+	await other.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
 
-	await editor.route('**/api/decks/*/source', (route) => route.abort());
-	await appendSource(editor, '\n<!-- À moi. -->\n');
-	await api(stack, `/decks/${id}/source`, { method: 'PUT', body: { source: body.source + '\nÀ eux.\n', rev } });
-	await editor.getByTestId('conflict').waitFor({ timeout: 10_000 });
-	await editor.unroute('**/api/decks/*/source');
-	await editor.getByRole('button', { name: 'Garder la mienne et écraser' }).click();
-	await waitData(editor, 'save-status', 'status', 'clean');
-	const stored = (await api<{ source: string }>(stack, `/decks/${id}`)).source;
-	expect([stored.includes('À moi.'), stored.includes('À eux.')]).toEqual([true, false]);
+	await slides(editor).first().click();
+	await slides(other).first().click();
+	const shapes = (page: Page) => page.locator('.stage-slide [data-shape]');
+	const before = await shapes(other).count();
+	await editor.getByTestId('tool-rect').click();
+	await other.waitForFunction(
+		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
+		before + 1,
+		{ timeout: 1_000 }
+	);
+	await editor.getByTestId('tool-delete').click();
+	await other.waitForFunction(
+		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
+		before,
+		{ timeout: 1_000 }
+	);
+	expect(await shapes(editor).count()).toBe(before);
+	await other.context().close();
+	await editor.getByTestId('presence').waitFor({ state: 'detached', timeout: 10_000 });
 });
 
 test('present mode steps through reveals and scenes, in step with the presenter view', async () => {
 	await editor.getByTestId('present').click();
 	await editor.waitForURL(/\/present$/);
-	await waitData(editor, 'present', 'last', 6);
+	await waitData(editor, 'present', 'last', 4);
 	await editor.keyboard.press('ArrowRight');
 	await waitData(editor, 'present', 'step', 1);
-	expect(await shown(editor, 'present', '.scene.is-active li[data-step="1"]')).toBe('hidden');
+	expect(await shown(editor, 'present', '.scene.is-active [data-step="1"]')).toBe('hidden');
 	await editor.keyboard.press('Space');
 	await waitData(editor, 'present', 'step', 2);
-	expect(await shown(editor, 'present', '.scene.is-active li[data-step="1"]')).toBe('visible');
-	expect(await shown(editor, 'present', '.scene.is-active li[data-step="2"]')).toBe('hidden');
+	expect(await shown(editor, 'present', '.scene.is-active [data-step="1"]')).toBe('visible');
+	expect(await shown(editor, 'present', '.scene.is-active [data-step="2"]')).toBe('hidden');
 	await editor.getByTestId('zone-next').click();
 	await waitData(editor, 'present', 'step', 3);
 
@@ -102,7 +131,7 @@ test('present mode steps through reveals and scenes, in step with the presenter 
 	await waitData(presenter, 'presenter', 'step', 3);
 	await presenter.getByTestId('notes').getByText('Vos notes vont ici.').waitFor({ timeout: 5_000 });
 	await presenter.keyboard.press('End');
-	await waitData(editor, 'present', 'step', 6);
+	await waitData(editor, 'present', 'step', 4);
 	await presenter.getByTestId('notes').getByText('À moi.').waitFor({ timeout: 5_000 });
 	await presenter.keyboard.press('Home');
 	await waitData(editor, 'present', 'scene', 0);
@@ -129,17 +158,17 @@ test('a shared deck opens without a session, as a page and as an embed, until th
 	const calls: string[] = [];
 	visitor.on('request', (request) => calls.push(new URL(request.url()).pathname));
 	await visitor.goto(url);
-	await waitData(visitor, 'viewer', 'last', 6);
+	await waitData(visitor, 'viewer', 'last', 4);
 	await visitor.keyboard.press('ArrowRight');
 	await visitor.getByTestId('zone-next').click();
 	await waitData(visitor, 'viewer', 'step', 2);
 	await visitor.keyboard.press('End');
 	await waitData(visitor, 'viewer', 'scene', 2);
-	expect(await (await stageFrame(visitor, 'viewer')).locator('.scene.is-active h2').textContent()).toBe('Seconde');
+	await (await stageFrame(visitor, 'viewer')).locator('.scene.is-active').getByText(TYPED).waitFor({ timeout: 5_000 });
 	expect(await visitor.getByTestId('made-with').getAttribute('href')).toBe('/');
 
 	await visitor.goto(`${stack.base}/embed/${token}`);
-	await waitData(visitor, 'viewer', 'last', 6);
+	await waitData(visitor, 'viewer', 'last', 4);
 	expect(await visitor.getByTestId('viewer-open').getAttribute('href')).toBe(`/p/${token}`);
 	expect(await visitor.getByTestId('made-with').count()).toBe(0);
 	const own = calls.filter((path) => path.startsWith('/api/') && !path.startsWith('/api/public/'));
@@ -168,6 +197,6 @@ test('an HTML export downloads a file, and the formats the API cannot make yet s
 		editor.getByTestId('export-html').getByTestId('export-download').click()
 	]);
 	expect(download.suggestedFilename()).toMatch(/\.html$/);
-	expect(await Bun.file(await download.path()).text()).toContain('Seconde');
+	expect(await Bun.file(await download.path()).text()).toContain(TYPED);
 	await editor.keyboard.press('Escape');
 });

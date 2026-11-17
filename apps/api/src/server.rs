@@ -16,6 +16,7 @@ use crate::env::Config;
 use crate::modules::exports::clap::Clap;
 use crate::modules::exports::tokens::Exchanged;
 use crate::modules::frame::FrameKey;
+use crate::modules::rooms::{Hub, SOCKET_RECHECK};
 use crate::state::AppState;
 
 type BootError = Box<dyn std::error::Error + Send + Sync>;
@@ -65,10 +66,13 @@ fn clap(config: &Config, kits: &Kits) -> Option<Clap> {
         .ok()
 }
 
-/// The shared state for `pool` under `config`.
-pub fn state(config: &Config, pool: PgPool, kits: &Kits) -> AppState {
+/// The shared state for `pool` under `config`, with the rooms of `hub`.
+pub fn state(config: &Config, pool: PgPool, kits: &Kits, hub: Hub) -> AppState {
     AppState {
         pool,
+        sessions: kits.sessions.clone(),
+        hub,
+        socket_recheck: SOCKET_RECHECK,
         issuer: Arc::from(config.porte.issuer.as_str()),
         data_dir: Arc::new(config.data_dir.clone()),
         events: Default::default(),
@@ -124,17 +128,15 @@ fn mcp_app(config: &Config, kits: &Kits, state: &mut AppState) -> Result<Option<
 
 async fn serve(config: Config, pool: PgPool) -> Result<(), BootError> {
     tronc::migrate::run(&pool, &crate::MIGRATOR).await?;
-    let kits = Kits::new(&config, &pool).await?;
+    let hub = Hub::default();
+    let kits = Kits::new(&config, &pool, &hub).await?;
     let token = CancellationToken::new();
-    let mut state = state(&config, pool, &kits);
+    let mut state = state(&config, pool, &kits, hub.clone());
     let mcp = mcp_app(&config, &kits, &mut state)?;
     tokio::fs::create_dir_all(state.captures.dir()).await.ok();
     crate::modules::exports::purge::recover(&state).await?;
     spawn_loops(&kits, &state, &token);
-    let mut http = tronc::http::Config::from_core(&config.core);
-    http.security = crate::security::config(http.security, &tronc::spa::dir_from_env(), &config.bulle.url);
-    let layers = tronc::http::layers(http)?;
-    let app = crate::router::build_router(state, &kits, mcp)?.layer(layers);
+    let app = crate::router::layered(&config, state, &kits, mcp)?;
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", config.core.port)).await?;
     tracing::info!(port = config.core.port, "diapo: listening");
     let stop = token.clone();
@@ -152,5 +154,6 @@ async fn serve(config: Config, pool: PgPool) -> Result<(), BootError> {
         result = server => result?,
         () = drained => tracing::warn!("diapo: drain timed out"),
     }
+    hub.shutdown().await;
     Ok(())
 }

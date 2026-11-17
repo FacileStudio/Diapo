@@ -17,7 +17,7 @@ describe('i18n', () => {
 		expect(t('decks.title')).toBe('Présentations');
 		expect([pickLocale(['pt-BR', 'de-AT']), pickLocale(['ja', null])]).toEqual(['de', 'fr']);
 		bindLocale(() => 'en');
-		expect([t('strip.count', { count: 1 }), t('strip.count', { count: 3 })]).toEqual(['1 scene', '3 scenes']);
+		expect([t('rail.count', { count: 1 }), t('rail.count', { count: 3 })]).toEqual(['1 slide', '3 slides']);
 		bindLocale(() => 'fr');
 	});
 });

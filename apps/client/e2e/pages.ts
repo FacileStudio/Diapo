@@ -40,9 +40,12 @@ export async function stageFrame(page: Page, testid: string): Promise<Frame> {
 	return frame;
 }
 
-/** Types `text` at the end of the source editor, as one input, so no editor keymap rewrites it. */
-export async function appendSource(page: Page, text: string): Promise<void> {
-	await page.locator('[data-testid="source-editor"] .cm-content').click();
-	await page.keyboard.press('Control+End');
-	await page.keyboard.insertText(text);
+/** Waits until the stored source of deck `id` holds `text`: the room saves on its own schedule. */
+export async function waitSource(stack: Stack, id: string, text: string): Promise<string> {
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		const { source } = await api<{ source: string }>(stack, `/decks/${id}`);
+		if (source.includes(text)) return source;
+		await Bun.sleep(200);
+	}
+	throw new Error(`deck ${id} never stored "${text}"`);
 }

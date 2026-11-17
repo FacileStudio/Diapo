@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CopyButton, Drawer, Dropzone, Icon, IconButton, Spinner, icons, toast } from '@facile/muse';
+	import { Drawer, Dropzone, Icon, IconButton, Spinner, icons, toast } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { t } from '$lib/i18n';
 	import type { Asset } from '$lib/types';
@@ -7,17 +7,20 @@
 	let {
 		open = $bindable(),
 		id,
-		assets = $bindable()
+		assets = $bindable(),
+		oninsert
 	}: {
 		open: boolean;
 		id: string;
-		/** The deck's files, shared with the insert menu. */
+		/** The deck's files, shared with the toolbar. */
 		assets: Asset[];
+		/** Places a picture or a video on the current slide. */
+		oninsert: (asset: Asset) => void;
 	} = $props();
 
 	let busy = $state(false);
 
-	const reference = (asset: Asset) => `![](${asset.name})`;
+	const placeable = (asset: Asset) => /^(image|video)\//.test(asset.mime);
 	const failed = (error: unknown) => toast.danger(error instanceof Error ? error.message : t('assets.failed'));
 
 	async function refresh() {
@@ -61,7 +64,11 @@
 				<li class="flex items-center gap-2 rounded-fc-md bg-fc-surface py-1 pr-1 pl-3">
 					<Icon icon={icons.folder} size={16} class="shrink-0 text-fc-fg-muted" />
 					<span class="min-w-0 flex-1 truncate font-fc-mono text-fc-xs text-fc-fg">{asset.name}</span>
-					<CopyButton text={reference(asset)} label={t('assets.copy')} />
+					{#if placeable(asset)}
+						<IconButton variant="ghost" aria-label={t('assets.insert', { name: asset.name })} onclick={() => oninsert(asset)}>
+							<Icon icon={icons.plus} size={18} />
+						</IconButton>
+					{/if}
 					<IconButton
 						variant="ghost-danger"
 						aria-label={t('assets.delete', { name: asset.name })}
