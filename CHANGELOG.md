@@ -4,6 +4,20 @@ All notable changes to Diapo. Versions follow SemVer.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-17
+
+### Added
+
+- Right-click menus on shapes, the empty slide, the slide rail and the files panel, also opened with Shift+F10 or the menu key: cut, copy, paste, duplicate, layer order, align and distribute, text alignment, lock, reveal step, insert, select all, slide and file actions.
+- Copy and paste of shapes within a slide, across slides and across decks, rich text included; pasted plain text becomes a text box.
+- Text alignment: justify, and vertical top, middle or bottom (planche v0.3.0), in the inspector, the menu and with Ctrl/⌘+Shift+L, E, R, J.
+- A keyboard shortcuts dialog (`?`), shortcuts in toolbar tooltips, bring forward and send backward, double-click on an empty slide to add text.
+
+### Changed
+
+- Selection outlines, hover, marquee, snap guides and resize knobs are the suite's blue with Toile's rounded square knobs, drawn above the slide so they are never clipped.
+- The inspector is grouped into position and size, text, appearance and reveal.
+
 ## [0.3.1] - 2026-11-17
 
 ### Changed
