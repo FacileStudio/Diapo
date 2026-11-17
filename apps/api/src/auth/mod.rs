@@ -23,6 +23,7 @@ pub use routes::routes;
 pub use spaces::SpacesApply;
 
 use crate::env::Config;
+use crate::modules::rooms::Hub;
 
 /// Every auth kit the app builds once at boot.
 #[derive(Clone)]
@@ -44,8 +45,9 @@ pub struct Kits {
 type BootError = Box<dyn std::error::Error + Send + Sync>;
 
 impl Kits {
-    /// Builds the kits. A wrong issuer fails here, so the boot fails.
-    pub async fn new(cfg: &Config, pool: &PgPool) -> Result<Kits, BootError> {
+    /// Builds the kits; the directory sync closes the rooms of `hub` people lost. A wrong issuer
+    /// fails here, so the boot fails.
+    pub async fn new(cfg: &Config, pool: &PgPool, hub: &Hub) -> Result<Kits, BootError> {
         let store = pg::Store::new(pool.clone()).with_token_sealer(pg::TokenSealer::parse(&cfg.token_key)?);
         let sessions = Manager::new(&cfg.porte, session::Deps { sessions: store.sessions(), now: None });
         let deps = oidc::Deps {
@@ -61,7 +63,7 @@ impl Kits {
         let mut kits = Kits { sessions, oidc, syncer: None, deletions: None, mcp: None, exchanger: None };
         if cfg.porte.enabled() {
             kits.exchanger = Some(Exchanger::new(exchange::Config::from_porte(&cfg.porte, store.identities()))?);
-            kits.directory(cfg, pool, store.clone());
+            kits.directory(cfg, pool, hub, store.clone());
         }
         if !cfg.mcp_resource.is_empty() {
             kits.mcp = Some(Arc::new(mcp_verifier(cfg, &store, &kits.oidc).await?));
@@ -69,14 +71,14 @@ impl Kits {
         Ok(kits)
     }
 
-    fn directory(&mut self, cfg: &Config, pool: &PgPool, store: pg::Store) {
+    fn directory(&mut self, cfg: &Config, pool: &PgPool, hub: &Hub, store: pg::Store) {
         let client = directory::Client {
             issuer: cfg.porte.issuer.clone(),
             client_id: cfg.porte.client_id.clone(),
             client_secret: cfg.porte.client_secret.clone(),
             http: HttpClient::new(),
         };
-        let apply = Arc::new(SpacesApply::new(pool.clone()));
+        let apply = Arc::new(SpacesApply::new(pool.clone(), hub.clone(), cfg.porte.issuer.clone()));
         self.syncer = Some(Syncer::new(client.clone(), apply, Duration::ZERO));
         let data = Arc::new(AppData::new(pool.clone(), cfg.data_dir.clone()));
         let state = Arc::new(DeletionState::new(pool.clone()));

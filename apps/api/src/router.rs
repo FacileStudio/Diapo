@@ -3,7 +3,8 @@ use axum::routing::get;
 use tronc::health::{self, Check};
 
 use crate::auth::{self, Kits};
-use crate::modules::{assets, assistant, decks, events, exports, frame, pending, public, share, spaces};
+use crate::env::Config;
+use crate::modules::{assets, assistant, decks, events, exports, frame, pending, public, rooms, share, spaces};
 use crate::state::AppState;
 
 async fn api_not_found() -> tronc::Error {
@@ -16,6 +17,7 @@ fn protected(kits: &Kits, state: &AppState) -> Router<AppState> {
         .merge(decks::routes())
         .merge(events::routes())
         .merge(share::routes())
+        .merge(rooms::routes())
         .merge(exports::routes())
         .merge(pending::routes(state.confirmations.clone()))
         .merge(assistant::routes())
@@ -57,4 +59,17 @@ pub fn build_router(state: AppState, kits: &Kits, mcp: Option<tronc::mcp::App>) 
         true => root.fallback_service(tronc::spa::handler(tronc::spa::Config { dir, ..Default::default() })),
         false => root.fallback(tronc::http::not_found),
     })
+}
+
+/// [`build_router`] under tronc's HTTP layers, with the app's security policy.
+pub fn layered(
+    config: &Config,
+    state: AppState,
+    kits: &Kits,
+    mcp: Option<tronc::mcp::App>,
+) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
+    let mut http = tronc::http::Config::from_core(&config.core);
+    http.security = crate::security::config(http.security, &tronc::spa::dir_from_env(), &config.bulle.url);
+    let layers = tronc::http::layers(http)?;
+    Ok(build_router(state, kits, mcp)?.layer(layers))
 }

@@ -77,7 +77,7 @@ async fn pdf(state: &AppState, id: Uuid, deck: &DeckRow, steps: bool) -> Result<
 /// The pictures of the `raw` scenes of `deck`, by scene index: empty when it has none, `None`
 /// when the capture service could not make them.
 async fn stills(state: &AppState, deck: &DeckRow) -> Option<build::Pictures> {
-    let project = scene::parse(&deck.source).ok()?;
+    let project = scene::planche::project(&deck.source).ok()?;
     let raw: Vec<usize> =
         (0..project.scenes().len()).filter(|index| project.scenes()[*index].layout == scene::Layout::Raw).collect();
     if raw.is_empty() {

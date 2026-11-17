@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::fixture::SOURCE;
+use common::fixture::{SOURCE, projected};
 use common::mcp::{Served, args, refused, served};
 use serde_json::{Value, json};
 use tronc::mcptest::{self, Client, ClientOptions, call, connect, decode};
@@ -31,7 +31,7 @@ async fn an_agent_creates_reads_edits_and_rewrites_a_deck_under_the_rev_rule() {
     let read: Value = decode(&call(&client, "diapo_get_deck", args(json!({"deck_id": id}))).await);
     assert_eq!(
         (read["source"].clone(), read["rev"].clone(), read["truncated"].clone()),
-        (json!(SOURCE), json!(1), json!(false))
+        (json!(projected(SOURCE)), json!(1), json!(false))
     );
     let edit = |old: &str, rev: i64| json!({"deck_id": id, "old_string": old, "new_string": "Up 15%", "rev": rev});
     assert!(refused(&client, "diapo_edit_deck", edit("Up 99%", 1)).await.contains("not in the source"));
@@ -53,7 +53,7 @@ async fn an_agent_creates_reads_edits_and_rewrites_a_deck_under_the_rev_rule() {
             .unwrap();
     assert_eq!(origins, ["mcp", "mcp", "mcp"]);
     let rest = served.app.call("GET", &format!("/api/decks/{id}"), Some(&served.person), None).await.json();
-    assert_eq!((rest["source"].clone(), rest["rev"].clone()), (json!("# Whole\n"), json!(3)));
+    assert_eq!((rest["source"].clone(), rest["rev"].clone()), (json!(projected("# Whole\n")), json!(3)));
 }
 
 #[tokio::test]
@@ -71,7 +71,8 @@ async fn an_agent_lists_decks_and_reads_the_guide() {
     let write = json!({"deck_id": theirs, "source": "# x\n", "rev": 1});
     assert_eq!(refused(&client, "diapo_write_deck", write).await, hidden);
     let guide: Value = decode(&call(&client, "diapo_format_guide", args(json!({}))).await);
-    assert_eq!(guide["guide"], json!(scene::FORMAT_GUIDE));
+    let text = guide["guide"].as_str().unwrap();
+    assert!(text.starts_with(scene::planche::GUIDE) && text.ends_with(scene::FORMAT_GUIDE), "{text}");
 }
 
 #[tokio::test]

@@ -35,6 +35,10 @@ pub async fn deck(app: &App, who: &Person, space: Option<&str>, source: &str) ->
     answer.json()
 }
 
+pub fn projected(source: &str) -> String {
+    planche::projection::write(&scene::planche::convert(source).unwrap())
+}
+
 pub fn id(deck: &Value) -> String {
     deck["id"].as_str().unwrap().to_owned()
 }
@@ -48,4 +52,12 @@ pub async fn shared(app: &App, who: &Person, space: Option<&str>) -> (String, St
     assert_eq!(link.status, 201, "{}", link.text());
     let url = link.json()["url"].as_str().unwrap().to_owned();
     (id, url.rsplit('/').next().unwrap().to_owned())
+}
+
+pub async fn serve(app: &App) -> String {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let router = app.router.clone().into_make_service_with_connect_info::<std::net::SocketAddr>();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    format!("ws://{addr}")
 }

@@ -29,6 +29,7 @@ const ROUTES: &[Row] = &[
     ("DELETE", "/decks/{id}", "decks", "Deletes a trashed deck for good", "204"),
     ("PUT", "/decks/{id}/source", "decks", "Saves {source, rev}; 409 on a stale rev, 422 on an invalid source", "200"),
     ("GET", "/decks/{id}/events", "decks", "Server-sent events: changed {rev}", "200"),
+    ("GET", "/decks/{id}/ws", "decks", "The y-sync WebSocket of one deck's room (planche, live co-editing)", "101"),
     ("GET", "/decks/{id}/frame", "frame", "The compiled HTML, sandboxed (?scene=n, from 0)", "200"),
     ("GET", "/decks/{id}/assets", "assets", "The assets of a deck", "200"),
     ("POST", "/decks/{id}/assets", "assets", "Uploads an asset (multipart `file`, optional `name`)", "201"),

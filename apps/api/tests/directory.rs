@@ -10,7 +10,7 @@ use porte::directory::PersonDeleted;
 #[tokio::test]
 async fn a_snapshot_replaces_spaces_and_members_once_per_version() {
     let Some(pool) = common::pool("diapo_directory").await else { return };
-    let apply = SpacesApply::new(pool.clone());
+    let apply = SpacesApply::new(pool.clone(), Default::default(), common::ISSUER.to_owned());
     let base = base();
     assert!(
         apply.apply_snapshot(&snapshot(base, vec![space("a", &[("s1", "owner")]), space("b", &[])])).await.unwrap()
@@ -34,7 +34,12 @@ async fn a_space_that_leaves_the_directory_has_its_decks_trashed_not_deleted() {
     let roles = fixture::roles(&app).await;
     let deck = fixture::id(&fixture::deck(&app, &roles.owner, Some(&roles.space), SOURCE).await);
     let kept = space(&roles.other_space, &[(&roles.outsider.subject, "owner")]);
-    assert!(SpacesApply::new(pool.clone()).apply_snapshot(&snapshot(base(), vec![kept])).await.unwrap());
+    assert!(
+        SpacesApply::new(pool.clone(), Default::default(), common::ISSUER.to_owned())
+            .apply_snapshot(&snapshot(base(), vec![kept]))
+            .await
+            .unwrap()
+    );
     assert_eq!(app.call("GET", &format!("/api/decks/{deck}"), Some(&roles.owner), None).await.status, 404);
     let trashed: bool = sqlx::query_scalar("SELECT trashed_at IS NOT NULL FROM decks WHERE id = $1::uuid")
         .bind(&deck)

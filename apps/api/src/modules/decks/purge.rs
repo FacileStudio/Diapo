@@ -21,6 +21,7 @@ pub async fn purge(state: &AppState) -> Result<u64, sqlx::Error> {
     let exports = leftovers::exports_of(&mut tx, &decks, &[]).await?;
     sqlx::query("DELETE FROM decks WHERE id = ANY($1)").bind(&decks).execute(&mut *tx).await?;
     tx.commit().await?;
+    state.hub.delete(&decks).await;
     leftovers::forget(&state.data_dir, &decks, &exports).await;
     Ok(decks.len() as u64)
 }

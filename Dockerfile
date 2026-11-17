@@ -20,7 +20,7 @@ RUN mkdir -p apps/api/src apps/api/migrations apps/cli/src apps/worker/src crate
     && cargo build --release --locked -p api -p worker \
     && rm -rf apps/api/src apps/api/migrations apps/worker/src crates/scene/src crates/capture/src
 COPY crates crates
-COPY docs/format.md docs/format.md
+COPY docs/format.md docs/planche.md docs/
 COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY apps/client/package.json /version/package.json

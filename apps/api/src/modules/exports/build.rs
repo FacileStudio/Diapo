@@ -51,7 +51,7 @@ pub fn pptx(project: &scene::Project, bundle: &Bundle, pictures: &Pictures) -> R
 /// here: a PDF comes from the capture service and an MP4 from Clap.
 pub async fn file(format: Format, source: String, bundle: Bundle, pictures: Pictures) -> Result<Vec<u8>> {
     let work = move || {
-        let project = scene::parse(&source).map_err(|errors| Error::failed(errors.to_string()))?;
+        let project = scene::planche::project(&source).map_err(|errors| Error::failed(errors.to_string()))?;
         match format {
             Format::Html => html(&source, &project, bundle, MAX_BYTES),
             Format::Pptx => pptx(&project, &bundle, &pictures),
