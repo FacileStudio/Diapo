@@ -9,11 +9,23 @@ import { shapeMenu, stageMenu } from './menus';
 
 const hooks = () => ({ edit: vi.fn(), files: vi.fn(), help: vi.fn() });
 
+function find(entries: MenuEntry[], label: string): MenuAction | undefined {
+	for (const entry of entries) {
+		if (!('label' in entry)) continue;
+		if (entry.label === label) return entry;
+		const inner = entry.items && find(entry.items, label);
+		if (inner) return inner;
+	}
+	return undefined;
+}
+
 function pick(entries: MenuEntry[], label: string): MenuAction {
-	const found = entries.find((entry): entry is MenuAction => 'label' in entry && entry.label.startsWith(label));
+	const found = find(entries, label);
 	if (!found) throw new Error(`no entry ${label}`);
 	return found;
 }
+
+const rows = (entries: MenuEntry[]) => entries.filter((entry) => 'label' in entry).length;
 
 describe('menus', () => {
 	it('runs the shape menu on the selection: duplicate, order, text alignment, lock, steps, delete', () => {
@@ -36,6 +48,9 @@ describe('menus', () => {
 		pick(menu(), t('menu.lock')).onselect?.();
 		expect(editor.slides[0].shapes[0]).toMatchObject({ step: 1, locked: true, style: { align: 'justify', valign: 'bottom' } });
 		expect(pick(menu(), t('menu.unlock'))).toBeTruthy();
+		expect(pick(menu(), t('menu.textAlign')).items).toHaveLength(8);
+		expect(pick(menu(), t('align.justify')).shortcut).toBe('mod+shift+j');
+		expect(rows(menu())).toBeLessThanOrEqual(12);
 		pick(menu(), t('menu.delete')).onselect?.();
 		expect(editor.slides[0].shapes.map((shape) => shape.id)).toEqual([a, b]);
 	});
@@ -49,6 +64,8 @@ describe('menus', () => {
 		editor.insert('ellipse', { x: 600, y: 500 });
 		editor.select(editor.slides[0].shapes.map((shape) => shape.id));
 		const menu = shapeMenu(controller, null, on);
+		expect(rows(menu)).toBeLessThanOrEqual(12);
+		expect(pick(menu, t('menu.alignDistribute')).items).toHaveLength(9);
 		expect(pick(menu, t('arrange.horizontal')).disabled).toBe(true);
 		pick(menu, t('arrange.top')).onselect?.();
 		expect(editor.slides[0].shapes.map((shape) => shape.y)).toEqual([0, 0]);

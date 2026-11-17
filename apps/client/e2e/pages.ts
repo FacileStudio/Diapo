@@ -1,12 +1,18 @@
 import type { Browser, Frame, Page } from 'playwright-core';
 
-/** What a running stack hands the tests: the app's URL and the session cookie of the signed-in person, if it needs one. */
-export type Stack = { base: string; cookie: string | null; stop: () => Promise<void> | void };
+/**
+ * What a running stack hands the tests: the app's URL, the session cookie of the signed-in
+ * person if it needs one, and the cookie of a second person when it seeds one.
+ */
+export type Stack = { base: string; cookie: string | null; guest?: string; stop: () => Promise<void> | void };
 
-/** A French browser page at `path`, signed in. Pages opened from one context share a `BroadcastChannel`. */
-export async function openPage(browser: Browser, stack: Stack, path: string): Promise<Page> {
+/**
+ * A French browser page at `path`, signed in with `cookie` (the stack's person by default).
+ * Pages opened from one context share a `BroadcastChannel`.
+ */
+export async function openPage(browser: Browser, stack: Stack, path: string, cookie = stack.cookie): Promise<Page> {
 	const context = await browser.newContext({ locale: 'fr-FR', viewport: { width: 1440, height: 900 } });
-	if (stack.cookie) await context.addCookies([{ name: 'session', value: stack.cookie, url: stack.base }]);
+	if (cookie) await context.addCookies([{ name: 'session', value: cookie, url: stack.base }]);
 	const page = await context.newPage();
 	await page.goto(`${stack.base}${path}`);
 	return page;

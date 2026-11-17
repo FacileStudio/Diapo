@@ -17,6 +17,14 @@ export const menus = {
 		'Centrar en la diapositiva',
 		'Auf der Folie zentrieren'
 	],
+	'menu.arrange': ['Arrange', 'Organiser', 'Organizar', 'Anordnen'],
+	'menu.alignDistribute': [
+		'Align and distribute',
+		'Aligner et répartir',
+		'Alinear y distribuir',
+		'Ausrichten und verteilen'
+	],
+	'menu.textAlign': ['Text alignment', 'Alignement du texte', 'Alineación del texto', 'Textausrichtung'],
 	'menu.lock': ['Lock', 'Verrouiller', 'Bloquear', 'Sperren'],
 	'menu.unlock': ['Unlock', 'Déverrouiller', 'Desbloquear', 'Entsperren'],
 	'menu.stepLater': [

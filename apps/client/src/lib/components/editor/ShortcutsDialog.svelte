@@ -29,8 +29,8 @@
 	];
 </script>
 
-<Modal {open} title={t('menu.shortcuts')} onClose={() => (open = false)}>
-	<dl class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-fc-sm" data-testid="shortcuts">
+<Modal {open} title={t('menu.shortcuts')} size="lg" onClose={() => (open = false)}>
+	<dl class="grid grid-cols-[minmax(12rem,1fr)_auto] gap-x-6 gap-y-2 text-fc-sm" data-testid="shortcuts">
 		{#each ROWS as [label, keys] (label)}
 			<dt class="text-fc-fg">{t(label)}</dt>
 			<dd class="flex flex-wrap justify-end gap-1.5 text-fc-fg-muted">

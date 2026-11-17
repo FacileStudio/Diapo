@@ -32,11 +32,14 @@ fn timing(shape: &Shape) -> String {
             let _ = write!(out, " data-{key}=\"{seconds}\"");
         }
     }
+    if let Some(track) = number(shape, "track") {
+        let _ = write!(out, " data-track-index=\"{track}\"");
+    }
     out
 }
 
 /// The opening tag of the box of `shape`: classes `pl pl-<type>`, its place in frame pixels
-/// (`size` overrides `w` and `h`), then `extra` declarations, and its step and clip attributes.
+/// (`size` overrides `w` and `h`), then `extra` declarations, and its step, clip and track attributes.
 pub(crate) fn open(shape: &Shape, size: Option<(f64, f64)>, extra: &str) -> String {
     let mut style = place(shape, size);
     if !extra.is_empty() {

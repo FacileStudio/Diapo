@@ -28,6 +28,15 @@ describe('slides', () => {
 		expect(editor.doc.shapes.get(first)?.get('x')).toBe(1480);
 	});
 
+	it('stacks the shapes of a slide by track, then z, as the compiler does', () => {
+		const editor = localDeckEditor();
+		editor.addSlide();
+		const low = editor.insert('rect');
+		const high = editor.insert('rect');
+		editor.doc.shapes.get(low)?.set('track', 1);
+		expect(editor.slides[0].shapes.map((shape) => shape.id)).toEqual([high, low]);
+	});
+
 	it('moves, duplicates and removes slides with their shapes', () => {
 		const editor = localDeckEditor();
 		const a = editor.addSlide();

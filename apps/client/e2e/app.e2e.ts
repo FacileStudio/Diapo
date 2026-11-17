@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { api, openPage, stageFrame, waitData, waitSource, type Stack } from './pages';
-import { startStack } from './stack';
+import { E2E_SPACE, startStack } from './stack';
 
 let stack: Stack;
 let browser: Browser;
@@ -85,7 +85,7 @@ test('a slide moves with the keyboard and comes back', async () => {
 	await slides(editor).nth(2).getByText(TYPED).waitFor({ timeout: 5_000 });
 });
 
-test('a right-click duplicates a shape, and a text alignment persists across a reload', async () => {
+test('a right-click duplicates a shape, a submenu justifies it, and the alignment persists across a reload', async () => {
 	await slides(editor).first().click();
 	const shapes = editor.locator('.stage-slide [data-shape]');
 	const before = await shapes.count();
@@ -93,7 +93,9 @@ test('a right-click duplicates a shape, and a text alignment persists across a r
 	await shapes.last().click({ button: 'right' });
 	await editor.getByRole('menuitem', { name: /^Dupliquer/ }).click();
 	await editor.waitForFunction((count) => document.querySelectorAll('.stage-slide [data-shape]').length === count, before + 2);
-	await editor.getByTestId('text-align').getByRole('radio', { name: 'Justifier' }).click();
+	await shapes.last().click({ button: 'right' });
+	await editor.getByRole('menuitem', { name: 'Alignement du texte' }).click();
+	await editor.getByRole('menuitem', { name: 'Justifier' }).click();
 	await editor.getByTestId('text-valign').getByRole('radio', { name: 'Bas' }).click();
 	await waitSource(stack, id, 'style.align="justify" style.valign="bottom"');
 
@@ -112,27 +114,37 @@ test('a right-click duplicates a shape, and a text alignment persists across a r
 });
 
 test('two people on one deck see each other and each other’s edits live', async () => {
-	const other = await openPage(browser, stack, `/decks/${id}`);
+	await api(stack, `/decks/${id}`, { method: 'PATCH', body: { space_id: E2E_SPACE } });
+	const other = await openPage(browser, stack, `/decks/${id}`, stack.guest);
 	await waitData(other, 'editor', 'synced', 'true');
-	await editor.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
+	await editor.getByTestId('presence').getByRole('button', { name: 'Suivre Bob' }).waitFor({ timeout: 5_000 });
 	await other.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
 
 	await slides(editor).first().click();
 	await slides(other).first().click();
 	const shapes = (page: Page) => page.locator('.stage-slide [data-shape]');
+	const count = (page: Page, want: number) =>
+		page.waitForFunction((n) => document.querySelectorAll('.stage-slide [data-shape]').length === n, want, {
+			timeout: 2_000
+		});
 	const before = await shapes(other).count();
 	await editor.getByTestId('tool-rect').click();
-	await other.waitForFunction(
-		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
-		before + 1,
-		{ timeout: 1_000 }
+	await count(other, before + 1);
+
+	const added = (await shapes(editor).last().getAttribute('data-shape')) ?? '';
+	const left = (page: Page) => page.locator(`[data-shape="${added}"]`).evaluate((node) => (node as HTMLElement).style.left);
+	const start = await left(editor);
+	await other.locator(`[data-shape="${added}"]`).click();
+	await other.keyboard.press('Shift+ArrowRight');
+	await editor.waitForFunction(
+		([shape, was]) => (document.querySelector(`[data-shape="${shape}"]`) as HTMLElement | null)?.style.left !== was,
+		[added, start],
+		{ timeout: 2_000 }
 	);
+	expect(parseFloat(await left(editor))).toBe(parseFloat(start) + 10);
+
 	await editor.getByTestId('tool-delete').click();
-	await other.waitForFunction(
-		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
-		before,
-		{ timeout: 1_000 }
-	);
+	await count(other, before);
 	expect(await shapes(editor).count()).toBe(before);
 	await other.context().close();
 	await editor.getByTestId('presence').waitFor({ state: 'detached', timeout: 10_000 });

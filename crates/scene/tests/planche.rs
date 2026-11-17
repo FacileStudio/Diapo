@@ -81,7 +81,8 @@ fn every_shape_type_compiles_to_its_golden_document() {
     for expected in [
         "class=\"pl pl-sticky\" style=\"left:80px;top:240px;width:240px;height:200px;transform:rotate(0.1rad)",
         "data-step=\"2\"",
-        "data-start=\"2\" data-duration=\"4\"><video src=\"assets/clip.mp4\" muted playsinline",
+        "data-start=\"2\" data-duration=\"4\" data-track-index=\"1\"><video src=\"assets/clip.mp4\" data-in=\"1.5\" data-volume=\"0.8\" muted playsinline",
+        "<audio src=\"assets/music.mp3\" data-volume=\"0.4\" hidden>",
         "Every <em>shape</em> {step=9}",
         "<div class=\"badge\">Live <em>now</em></div>\n    ---\n<p>A rule above</p></div>",
         "<a href=\"https://example.com\">",
@@ -89,6 +90,7 @@ fn every_shape_type_compiles_to_its_golden_document() {
         assert!(html.contains(expected), "missing {expected} in\n{html}");
     }
     assert!(!html.contains("not on a slide"));
+    assert!(html.find("pl pl-card").unwrap() < html.find("pl pl-video").unwrap(), "track 1 stacks above track 0");
     golden(&dir.join("expected.html"), &html);
 }
 

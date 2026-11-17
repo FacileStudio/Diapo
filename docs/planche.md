@@ -3,7 +3,7 @@
 A Diapo deck is a planche document under the `full` profile. Its source is the planche text
 projection: plain text that reads like markdown and round-trips losslessly. This page is for
 agents and CLI users who read or write that text. The normative reference is the planche spec,
-section 2: https://github.com/FacileStudio/planche/blob/v0.3.0/spec/FORMAT.md
+section 2: https://github.com/FacileStudio/planche/blob/v0.3.1/spec/FORMAT.md
 
 ## The projection
 
@@ -85,10 +85,12 @@ converted once, scene by scene:
 `scene::planche::to_source` compiles a document to scene source, which `scene::parse` and
 `scene::compile` turn into the presented HTML. Each top-level frame is one `layout: raw` scene;
 its notes are the presenter note and its `duration` is the scene duration when
-`fixed_duration` is true. The headmatter holds `size` and the title. Each child shape, by `z`,
-is one `div.pl.pl-<type>` placed at `left`, `top`, `width` and `height` in frame pixels, with
-`transform: rotate(<rot>rad)`, `opacity`, `data-step` when `step` is above 0, and
-`data-start` and `data-duration` when set.
+`fixed_duration` is true. The headmatter holds `size` and the title. Each child shape, by
+`track` (0 without one), then by `z`, is one `div.pl.pl-<type>` placed at `left`, `top`,
+`width` and `height` in frame pixels, with `transform: rotate(<rot>rad)`, `opacity`,
+`data-step` when `step` is above 0, `data-start` and `data-duration` when set, and
+`data-track-index` from `track`, which the runtime turns into the box's `z-index`. A higher
+track always stacks above a lower one.
 
 | Type | Compiles to |
 |---|---|
@@ -98,10 +100,10 @@ is one `div.pl.pl-<type>` placed at `left`, `top`, `width` and `height` in frame
 | `ellipse` | As `rect`, with `border-radius: 50%` |
 | `diamond` | As `rect`, clipped to a diamond with `clip-path` |
 | `image` | `<img>` of `asset`, `object-fit` from `fit` (default `contain`) |
-| `video` | `<video muted playsinline>` of `asset`, `object-fit` from `fit` |
-| `audio` | A hidden `<audio>` of `asset` |
+| `video` | `<video muted playsinline>` of `asset`, `object-fit` from `fit`, with `data-in` from `media_in` and `data-volume` from `volume` |
+| `audio` | A hidden `<audio>` of `asset`, with `data-in` and `data-volume` as on `video` |
 | `html` | The HTML verbatim inside its box |
-| `line`, `arrow` | Inline SVG through `points`; an arrow, or a line with a `head` other than `none`, ends in a head |
+| `line`, `arrow` | Inline SVG through `points`; an arrow, or a line with a `head` other than `none`, ends in a head. `from` and `to` are not read: the arrow is drawn where its `points` are, so a writer that binds an arrow keeps `points` current too |
 | `ink` | Inline SVG through `points`, pressure ignored |
 | `card` | A link box: `title`, `description` and `site`, linking to `url` |
 
@@ -116,9 +118,14 @@ in pixels and `text-align`; on `sticky`, `rect`, `ellipse` and `diamond`, `style
 | `style.valign` `top` | `display:flex;flex-direction:column;justify-content:flex-start` |
 | `style.valign` `middle` | the same column with `justify-content:center` |
 | `style.valign` `bottom` | the same column with `justify-content:flex-end` |
-| no `style.valign` | top on `text` and `sticky`, middle on `rect`, `ellipse` and `diamond` |
+| no `style.valign` | middle on `rect`, `ellipse` and `diamond`, top on every other type |
 
 A body line that the scene splitter would read as `---` or a code fence is indented
 by four spaces. The compiled scene passes the same checks as any other: a remote URL in an
-asset, an image or an `html` shape is refused. `enter`, `track`, `media_in`, `volume`, bindings
-and nested frames are kept in the document and not compiled yet.
+asset, an image or an `html` shape is refused.
+
+`data-in` and `data-volume` are Clap's clip attributes, the second of the file a clip starts
+at and its loudness. Diapo's runtime does not play media, so they take effect where Clap plays
+or renders the scene. Three things are kept in the document and never compiled: `enter`, because
+the scene format has no animation presets (animate with `scene.timeline` in an `html` shape),
+a frame's `layout`, and frames nested in a slide, which draw nothing.
