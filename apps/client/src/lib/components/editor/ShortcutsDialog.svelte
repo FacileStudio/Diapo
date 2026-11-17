@@ -29,7 +29,7 @@
 	];
 </script>
 
-<Modal {open} title={t('menu.shortcuts')} size="lg" class="outline-none" onClose={() => (open = false)}>
+<Modal {open} title={t('menu.shortcuts')} size="lg" onClose={() => (open = false)}>
 	<dl class="grid grid-cols-[minmax(12rem,1fr)_auto] gap-x-6 gap-y-2 text-fc-sm" data-testid="shortcuts">
 		{#each ROWS as [label, keys] (label)}
 			<dt class="text-fc-fg">{t(label)}</dt>
