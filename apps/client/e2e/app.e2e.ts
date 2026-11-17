@@ -85,6 +85,33 @@ test('a slide moves with the keyboard and comes back', async () => {
 	await slides(editor).nth(2).getByText(TYPED).waitFor({ timeout: 5_000 });
 });
 
+test('two people on one deck see each other and each other’s edits live', async () => {
+	const other = await openPage(browser, stack, `/decks/${id}`);
+	await waitData(other, 'editor', 'synced', 'true');
+	await editor.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
+	await other.getByTestId('presence').getByRole('button', { name: 'Suivre Alice' }).waitFor({ timeout: 5_000 });
+
+	await slides(editor).first().click();
+	await slides(other).first().click();
+	const shapes = (page: Page) => page.locator('.stage-slide [data-shape]');
+	const before = await shapes(other).count();
+	await editor.getByTestId('tool-rect').click();
+	await other.waitForFunction(
+		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
+		before + 1,
+		{ timeout: 1_000 }
+	);
+	await editor.getByTestId('tool-delete').click();
+	await other.waitForFunction(
+		(count) => document.querySelectorAll('.stage-slide [data-shape]').length === count,
+		before,
+		{ timeout: 1_000 }
+	);
+	expect(await shapes(editor).count()).toBe(before);
+	await other.context().close();
+	await editor.getByTestId('presence').waitFor({ state: 'detached', timeout: 10_000 });
+});
+
 test('present mode steps through reveals and scenes, in step with the presenter view', async () => {
 	await editor.getByTestId('present').click();
 	await editor.waitForURL(/\/present$/);
