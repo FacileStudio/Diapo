@@ -85,7 +85,7 @@ test('a slide moves with the keyboard and comes back', async () => {
 	await slides(editor).nth(2).getByText(TYPED).waitFor({ timeout: 5_000 });
 });
 
-test('a right-click duplicates a shape, and a text alignment persists across a reload', async () => {
+test('a right-click duplicates a shape, a submenu justifies it, and the alignment persists across a reload', async () => {
 	await slides(editor).first().click();
 	const shapes = editor.locator('.stage-slide [data-shape]');
 	const before = await shapes.count();
@@ -93,7 +93,9 @@ test('a right-click duplicates a shape, and a text alignment persists across a r
 	await shapes.last().click({ button: 'right' });
 	await editor.getByRole('menuitem', { name: /^Dupliquer/ }).click();
 	await editor.waitForFunction((count) => document.querySelectorAll('.stage-slide [data-shape]').length === count, before + 2);
-	await editor.getByTestId('text-align').getByRole('radio', { name: 'Justifier' }).click();
+	await shapes.last().click({ button: 'right' });
+	await editor.getByRole('menuitem', { name: 'Alignement du texte' }).click();
+	await editor.getByRole('menuitem', { name: 'Justifier' }).click();
 	await editor.getByTestId('text-valign').getByRole('radio', { name: 'Bas' }).click();
 	await waitSource(stack, id, 'style.align="justify" style.valign="bottom"');
 

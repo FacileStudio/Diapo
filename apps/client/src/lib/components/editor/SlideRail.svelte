@@ -5,7 +5,6 @@
 	import { t } from '$lib/i18n';
 	import type { Asset } from '$lib/types';
 	import SlideThumb from './SlideThumb.svelte';
-	import { keyed } from './menus';
 	import { plainText } from './text';
 
 	let { editor, assets }: { editor: DeckEditor; assets: Asset[] } = $props();
@@ -36,8 +35,8 @@
 			{ label: t('rail.addAfter'), icon: icons.plus, onselect: () => add(id) },
 			{ label: t('rail.duplicate'), icon: icons.copy, onselect: () => editor.show(editor.duplicateSlide(id)) },
 			{ separator: true },
-			{ label: keyed(t('rail.up'), 'alt+up'), disabled: index === 0, onselect: () => shift(index, -1) },
-			{ label: keyed(t('rail.down'), 'alt+down'), disabled: index === editor.slides.length - 1, onselect: () => shift(index, 1) },
+			{ label: t('rail.up'), shortcut: 'alt+up', disabled: index === 0, onselect: () => shift(index, -1) },
+			{ label: t('rail.down'), shortcut: 'alt+down', disabled: index === editor.slides.length - 1, onselect: () => shift(index, 1) },
 			{ separator: true },
 			{
 				label: t('rail.delete'),

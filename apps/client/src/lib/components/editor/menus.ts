@@ -22,18 +22,13 @@ export function spell(keys: string): string {
 	return keyCaps(keys, apple).join(apple ? '' : '+');
 }
 
-/** `label`, an em space, then its shortcut: menus show both on one row. */
-export function keyed(label: string, keys: string): string {
-	return `${label} ${spell(keys)}`;
-}
-
 function clipEntries(controller: StageController, at: Point | null): MenuEntry[] {
 	const { actions } = controller;
 	return [
-		{ label: keyed(t('menu.cut'), 'mod+x'), icon: tools.cut, onselect: () => void actions.cut() },
-		{ label: keyed(t('menu.copy'), 'mod+c'), icon: icons.copy, onselect: () => void actions.copy() },
-		{ label: keyed(t('menu.paste'), 'mod+v'), icon: tools.paste, onselect: () => void actions.paste(at ?? undefined) },
-		{ label: keyed(t('menu.duplicate'), 'mod+d'), onselect: () => actions.duplicate() }
+		{ label: t('menu.cut'), shortcut: 'mod+x', icon: tools.cut, onselect: () => void actions.cut() },
+		{ label: t('menu.copy'), shortcut: 'mod+c', icon: icons.copy, onselect: () => void actions.copy() },
+		{ label: t('menu.paste'), shortcut: 'mod+v', icon: tools.paste, onselect: () => void actions.paste(at ?? undefined) },
+		{ label: t('menu.duplicate'), shortcut: 'mod+d', onselect: () => actions.duplicate() }
 	];
 }
 
@@ -44,8 +39,9 @@ function orderEntries(controller: StageController): MenuEntry[] {
 		['backward', 'menu.backward', 'mod+['],
 		['back', 'tool.back', 'mod+shift+[']
 	] as const;
-	return rows.map(([where, label, keys]) => ({
-		label: keyed(t(label), keys),
+	return rows.map(([where, label, shortcut]) => ({
+		label: t(label),
+		shortcut,
 		icon: where === 'front' ? tools.front : where === 'back' ? tools.back : undefined,
 		onselect: () => controller.actions.reorder(where)
 	}));
@@ -63,13 +59,14 @@ function arrangeEntries(controller: StageController): MenuEntry[] {
 		disabled: count < 3,
 		onselect: () => actions.distribute(axis)
 	}));
-	return [...align, ...spread];
+	return [{ label: t('menu.alignDistribute'), items: [...align, SEPARATOR, ...spread] }];
 }
 
-/** The text alignment entries, horizontal then vertical, each with its glyph; shortcuts on the horizontal ones. */
-export function textEntries(apply: (patch: TextAlign) => void): MenuEntry[] {
+/** The text alignment submenu: horizontal then vertical, each with its glyph; shortcuts on the horizontal ones. */
+function textEntry(apply: (patch: TextAlign) => void): MenuEntry {
 	const across = (['left', 'center', 'right', 'justify'] as const).map((align, index) => ({
-		label: keyed(t(`align.${align}`), `mod+shift+${'LERJ'[index]}`),
+		label: t(`align.${align}`),
+		shortcut: `mod+shift+${'lerj'[index]}`,
 		icon: tools[`align-${align}`],
 		onselect: () => apply({ align })
 	}));
@@ -78,7 +75,7 @@ export function textEntries(apply: (patch: TextAlign) => void): MenuEntry[] {
 		icon: tools[`valign-${valign}`],
 		onselect: () => apply({ valign })
 	}));
-	return [...across, ...down];
+	return { label: t('menu.textAlign'), icon: tools['align-left'], items: [...across, SEPARATOR, ...down] };
 }
 
 /** The menu of a right-click on the selection. */
@@ -89,21 +86,20 @@ export function shapeMenu(controller: StageController, at: Point | null, hooks: 
 	const locked = shapes.every((shape) => shape.locked);
 	const lowest = Math.min(...shapes.map((shape) => shape.step ?? 0));
 	const single = shapes.length === 1 && worded ? shapes[0].id : null;
-	const opener: MenuEntry[] = single ? [{ label: keyed(t('menu.edit'), 'enter'), onselect: () => hooks.edit(single) }] : [];
+	const opener: MenuEntry[] = single ? [{ label: t('menu.edit'), shortcut: 'enter', onselect: () => hooks.edit(single) }] : [];
 	return [
 		...opener,
 		...clipEntries(controller, at),
 		SEPARATOR,
-		...orderEntries(controller),
-		SEPARATOR,
-		...(worded ? [...textEntries((patch) => actions.textAlign(patch)), SEPARATOR] : []),
+		{ label: t('menu.arrange'), icon: tools.front, items: orderEntries(controller) },
 		...arrangeEntries(controller),
+		...(worded ? [textEntry((patch) => actions.textAlign(patch))] : []),
 		SEPARATOR,
 		{ label: t(locked ? 'menu.unlock' : 'menu.lock'), icon: tools.lock, onselect: () => actions.lock(!locked) },
 		{ label: t('menu.stepLater'), onselect: () => actions.step(1) },
 		{ label: t('menu.stepEarlier'), disabled: lowest === 0, onselect: () => actions.step(-1) },
 		SEPARATOR,
-		{ label: keyed(t('menu.delete'), 'delete'), icon: icons.remove, tone: 'danger', onselect: () => controller.editor.remove(shapes.map((shape) => shape.id)) }
+		{ label: t('menu.delete'), shortcut: 'delete', icon: icons.remove, tone: 'danger', onselect: () => controller.editor.remove(shapes.map((shape) => shape.id)) }
 	];
 }
 
@@ -118,7 +114,7 @@ export function stageMenu(controller: StageController, at: Point | null, hooks: 
 		['diamond', 'tool.diamond', tools.diamond]
 	];
 	return [
-		{ label: keyed(t('menu.paste'), 'mod+v'), icon: tools.paste, onselect: () => void controller.actions.paste(at ?? undefined) },
+		{ label: t('menu.paste'), shortcut: 'mod+v', icon: tools.paste, onselect: () => void controller.actions.paste(at ?? undefined) },
 		SEPARATOR,
 		...kinds.map(([kind, label, icon]) => ({
 			label: t('menu.insert', { what: t(label) }),
@@ -127,7 +123,7 @@ export function stageMenu(controller: StageController, at: Point | null, hooks: 
 		})),
 		{ label: t('menu.media'), icon: tools.image, onselect: hooks.files },
 		SEPARATOR,
-		{ label: keyed(t('menu.selectAll'), 'mod+a'), disabled: controller.shapes.length === 0, onselect: () => controller.editor.select(controller.shapes.map((shape) => shape.id)) },
-		{ label: keyed(t('menu.shortcuts'), '?'), icon: icons.help, onselect: hooks.help }
+		{ label: t('menu.selectAll'), shortcut: 'mod+a', disabled: controller.shapes.length === 0, onselect: () => controller.editor.select(controller.shapes.map((shape) => shape.id)) },
+		{ label: t('menu.shortcuts'), shortcut: '?', icon: icons.help, onselect: hooks.help }
 	];
 }
