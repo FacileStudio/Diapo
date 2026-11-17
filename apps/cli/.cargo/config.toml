@@ -1,4 +1,4 @@
-# `facile install diapo --source` runs `cargo build --release` in this folder and takes the
+# `kit add diapo --source` runs `cargo build --release` in this folder and takes the
 # binary from ./target/release/diapo. Without this, cargo would put it in the workspace's
 # target folder two levels up and the installer would not find it. Cargo reads this file
 # only when it is run from apps/cli: a build from the repo root is not affected.

@@ -9,10 +9,10 @@ in `apps/cli` and needs no server for the local commands.
 curl -fsSL https://raw.githubusercontent.com/FacileStudio/Diapo/main/install.sh | bash
 ```
 
-Or `facile install diapo` when you already have [facile](https://github.com/FacileStudio/facile).
+Or `kit add diapo` when you already have [kit](https://github.com/FacileStudio/kit).
 
-The first binaries are published with the next tagged release, and `facile` needs the catalog
-entry at the end of this page. Until both exist, run the CLI from a checkout:
+The first binaries are published with the next tagged release. Until then, run the CLI from a
+checkout:
 `cargo run -p diapo-cli -- <command>`.
 
 ## Commands
@@ -212,10 +212,10 @@ Each archive holds the `diapo` binary at its root. `diapo --version` prints the 
 `apps/cli/Cargo.toml`, so that version must equal the tag: bump it, with
 `apps/client/package.json`, in the tagged commit. The gate and the workflow both check it.
 
-## The `facile` catalog entry
+## The `kit` catalog entry
 
-The block to add to `internal/manifest/tools.yml` in `FacileStudio/facile`. Every `auth` field
-is transcribed from the code in `apps/cli/src/config` and `apps/cli/src/api/auth.rs`:
+The block in `crates/kit-core/catalog/tools.yml` in `FacileStudio/kit`. Every `auth` field is
+transcribed from the code in `apps/cli/src/config` and `apps/cli/src/api/auth.rs`:
 
 ```yaml
   - name: diapo

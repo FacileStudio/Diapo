@@ -83,9 +83,9 @@ Go live, in this order, once each app's `main` passes its gate and is tagged:
     `solar:clapperboard-open-bold-duotone` for Clap; the same two glyphs go in Bulle's
     `apps/client/src/lib/suite-icons.ts` in step 3),
     register glyphs through `scripts/gen-icons.ts`. Verify: Suite gate, then the live wall.
-12. `facile` installer catalog: entries for the `diapo` and `clap` CLIs with their `auth:`
+12. `kit` catalog: entries for the `diapo` and `clap` CLIs with their `auth:`
     blocks, after each repo's release workflow has published archives.
-    `[cli: standards/cli sections 2.5, 5, 6.8]` Verify: `facile add diapo,clap` installs
+    `[cli: standards/cli sections 2.5, 5, 6.8]` Verify: `kit add diapo,clap` installs
     both and `diapo --version` prints the tag.
 13. Wiki: `projects/diapo.md`, `projects/clap.md` with compose ids, client ids, tiroir key
     names, monitor ids and the traps found on the way.

@@ -1,7 +1,7 @@
 name: release
 
 # Builds the `diapo` command line for every platform the suite installer serves and publishes
-# the archives beside checksums.txt. `facile install diapo` composes the download URL from the
+# the archives beside checksums.txt. `kit add diapo` composes the download URL from the
 # names below, so they are a contract:
 #
 #   diapo_<version>_<os>_<arch>.tar.gz   the binary bare at the archive root
