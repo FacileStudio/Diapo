@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Editor, type CollabUser, type Locale } from '@facile/encre';
 	import { Icon, icons } from '@facile/muse';
+	import { untrack } from 'svelte';
+	import type * as Y from 'yjs';
 	import type { DeckEditor } from '$lib/editor/types';
 	import { locale, t } from '$lib/i18n';
 
@@ -18,6 +20,12 @@
 	const slide = $derived(editor.current);
 	const editable = $derived(editor.synced && editor.stopped === null);
 	const language = locale() as Locale;
+	let fragment = $state.raw<Y.XmlFragment | null>(null);
+
+	$effect.pre(() => {
+		const shown = slide;
+		fragment = shown ? untrack(() => editor.notes(shown)) : null;
+	});
 </script>
 
 <section
@@ -37,11 +45,11 @@
 		<Icon icon={open ? icons.chevronDown : icons.chevronUp} size={16} />
 		{t('notes.title')}
 	</button>
-	{#if open && slide}
+	{#if open && slide && fragment}
 		<div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3" data-testid="notes-editor">
 			{#key slide}
 				<Editor
-					fragment={editor.notes(slide)}
+					{fragment}
 					provider={editor.provider ?? undefined}
 					{user}
 					{editable}

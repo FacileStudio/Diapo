@@ -37,7 +37,7 @@ export function writeFields(map: Y.Map<unknown>, type: FullType, fields: Fields)
 		if (SKIPPED.has(key) || !allowedKey(type, key, 'full')) continue;
 		const kept = value == null ? undefined : clean(key, value);
 		if (kept === undefined) map.delete(key);
-		else if (map.get(key) !== kept) map.set(key, kept);
+		else if (!map.doc || map.get(key) !== kept) map.set(key, kept);
 	}
 }
 
