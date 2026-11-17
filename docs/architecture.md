@@ -23,7 +23,7 @@ which compiles both formats.
 - `facile-scene` with its `planche` feature (`crates/scene/src/planche/`) is the only bridge
   between the scene format and planche: `convert` reads either format into a planche document,
   `project` compiles either format into a scene `Project`, `STARTER` and `GUIDE`.
-- `planche` v0.2.0 is the document: schema, profiles, the Yjs reader and writer, the projection.
+- `planche` v0.3.0 is the document: schema, profiles, the Yjs reader and writer, the projection.
 - `salon` v0.1.0 hosts the rooms: the hub, the room loop, y-sync, presence, slow members,
   socket re-checks, shutdown. Diapo implements its two hooks in `apps/api/src/modules/rooms/`.
 
