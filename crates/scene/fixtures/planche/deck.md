@@ -11,7 +11,7 @@ Start with the **title**, then reveal the rest.
 ```audio id="music" start="0" duration="12" asset="assets/music.mp3" volume="0.4"
 ```
 
-```text id="title" x="80" y="60" w="1120" h="140" z="a0" style.align="center"
+```text id="title" x="80" y="60" w="1120" h="140" z="a0" style.align="center" enter="fade"
 # Every *shape* {step=9}
 ```
 
@@ -42,7 +42,7 @@ Plain **rich** box
 ```image id="chart" x="1040" y="240" w="200" h="160" z="a8" fit="cover" asset="assets/chart.svg"
 ```
 
-```video id="clip" x="80" y="560" w="320" h="120" z="a9" start="2" duration="4" asset="assets/clip.mp4"
+```video id="clip" x="80" y="560" w="320" h="120" z="a9" start="2" duration="4" track="1" asset="assets/clip.mp4" media_in="1.5" volume="0.8"
 ```
 
 ```html id="badge" x="440" y="560" w="320" h="120" z="aA"

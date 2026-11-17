@@ -4,7 +4,7 @@ use ::planche::{Shape, Value};
 
 use super::boxes::open;
 use super::strokes;
-use super::values::{css, escape, string, style};
+use super::values::{css, escape, number, string, style};
 
 const STICKY: &str = "#fde68a";
 
@@ -53,13 +53,24 @@ fn placement(valign: &str) -> Option<String> {
     Some(format!("display:flex;flex-direction:column;justify-content:{justify}"))
 }
 
+fn playback(shape: &Shape) -> String {
+    let mut out = String::new();
+    for (key, attribute) in [("media_in", "data-in"), ("volume", "data-volume")] {
+        if let Some(value) = number(shape, key) {
+            out.push_str(&format!(" {attribute}=\"{value}\""));
+        }
+    }
+    out
+}
+
 fn media(shape: &Shape) -> String {
     let src = escape(string(shape, "asset").unwrap_or_default());
     let fit = escape(&css(string(shape, "fit").unwrap_or("contain")));
+    let play = playback(shape);
     match shape.kind.as_str() {
         "image" => format!("<img src=\"{src}\" alt=\"\" style=\"object-fit:{fit}\">"),
-        "video" => format!("<video src=\"{src}\" muted playsinline style=\"object-fit:{fit}\"></video>"),
-        _ => format!("<audio src=\"{src}\" hidden></audio>"),
+        "video" => format!("<video src=\"{src}\"{play} muted playsinline style=\"object-fit:{fit}\"></video>"),
+        _ => format!("<audio src=\"{src}\"{play} hidden></audio>"),
     }
 }
 

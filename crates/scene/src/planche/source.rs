@@ -33,7 +33,10 @@ fn children<'a>(document: &'a Document, frame: &str) -> Vec<Entry<'a>> {
         .iter()
         .filter(|(_, shape)| shape.kind != "frame" && string(shape, "parent") == Some(frame))
         .collect();
-    found.sort_by_key(|(id, shape)| (string(shape, "z").is_some(), string(shape, "z"), *id));
+    found.sort_by_key(|(id, shape)| {
+        let track = number(shape, "track").unwrap_or_default() as i64;
+        (track, string(shape, "z").is_some(), string(shape, "z"), *id)
+    });
     found
 }
 

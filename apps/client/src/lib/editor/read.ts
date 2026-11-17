@@ -32,7 +32,12 @@ export function compareOrder(a: Shape<FullType>, b: Shape<FullType>): number {
 	return compareZ({ z: a.order ?? '', id: a.id }, { z: b.order ?? '', id: b.id });
 }
 
-/** The slides of the document: top-level frames by `order`, each with its children by `z`. */
+/** Orders the shapes of one slide as the compiler stacks them: by `track` (0 without one), then by `z`. */
+export function compareStack(a: Shape<FullType>, b: Shape<FullType>): number {
+	return (a.track ?? 0) - (b.track ?? 0) || compareZ(a, b);
+}
+
+/** The slides of the document: top-level frames by `order`, each with its children by `track`, then `z`. */
 export function readSlides(doc: BoardDoc): Slide[] {
 	const all = readAll(doc);
 	const frames = all.filter((shape) => shape.type === 'frame' && !shape.parent).sort(compareOrder);
@@ -42,6 +47,6 @@ export function readSlides(doc: BoardDoc): Slide[] {
 		id: frame.id,
 		name: frame.name ?? '',
 		order: frame.order ?? '',
-		shapes: (children.get(frame.id) ?? []).sort(compareZ)
+		shapes: (children.get(frame.id) ?? []).sort(compareStack)
 	}));
 }
