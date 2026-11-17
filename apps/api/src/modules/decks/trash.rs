@@ -28,6 +28,7 @@ pub async fn permanent(state: &AppState, user_id: i64, id: Uuid) -> Result<()> {
         return Err(Error::failed("only a deck in the trash can be deleted"));
     }
     tx.commit().await.map_err(db)?;
+    state.hub.delete(&[id]).await;
     leftovers::forget(&state.data_dir, &[id], &exports).await;
     Ok(())
 }

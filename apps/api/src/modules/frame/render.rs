@@ -54,7 +54,7 @@ pub async fn compiled(
     links: Links<'_>,
 ) -> Result<String, DeckError> {
     let row = fetch(state, deck).await?;
-    let project = scene::parse(&row.source).map_err(DeckError::Invalid)?;
+    let project = scene::planche::project(&row.source).map_err(DeckError::Invalid)?;
     let names = assets::names(state, deck).await?;
     let resolve = |path: &str| {
         let (name, fragment) = name::referenced(path);

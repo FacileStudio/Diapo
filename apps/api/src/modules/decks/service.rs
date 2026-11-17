@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use super::access::{self, Access, member_spaces};
 use super::error::DeckError;
-use super::source::{self, STARTER};
+use super::source;
 use super::types::{Author, CreateRequest, Deck, DeckEntry, DeckRow, ListQuery, columns};
 use super::write;
 use crate::extract::db;
@@ -62,13 +62,16 @@ fn named(asked: &str, project: &scene::Project) -> Result<String> {
 }
 
 /// `POST /decks`: a new deck at `rev` 1, in a space the caller may edit or in their personal
-/// decks. Its title is the one asked for, else the source's `title`, else [`UNTITLED`].
+/// decks. The source, in either format, is stored as its planche projection; the starter deck
+/// when none is given. Its title is the one asked for, else the source's (a legacy `title`, a
+/// projection's first frame name), else [`UNTITLED`].
 pub async fn create(state: &AppState, author: &Author, request: CreateRequest) -> std::result::Result<Deck, DeckError> {
     let have = access::scope(state, author.user_id, request.space_id.as_deref()).await?;
     access::require(have, Access::Editor)?;
-    let text = request.source.as_deref().unwrap_or(STARTER);
-    let project = source::checked(text, state.limits.source)?;
-    let title = named(&request.title, &project)?;
+    let text = request.source.as_deref().unwrap_or(scene::planche::STARTER);
+    let prepared = source::checked(text, state.limits.source)?;
+    let legacy = (!scene::planche::is_planche(text)).then(|| scene::parse(text).ok()).flatten();
+    let title = named(&request.title, legacy.as_ref().unwrap_or(&prepared.project))?;
     let mut tx = state.pool.begin().await.map_err(db)?;
     let row = sqlx::query_as::<_, DeckRow>(concat!(
         "INSERT INTO decks (space_id, owner_id, title, source, created_by, updated_by) \
@@ -78,7 +81,7 @@ pub async fn create(state: &AppState, author: &Author, request: CreateRequest) -
     .bind(&request.space_id)
     .bind(author.user_id)
     .bind(title)
-    .bind(text)
+    .bind(&prepared.source)
     .fetch_one(&mut *tx)
     .await
     .map_err(db)?;
@@ -123,5 +126,7 @@ mod tests {
         assert_eq!(super::named(" Mine ", &titled).unwrap(), "Mine");
         assert_eq!(super::named("", &titled).unwrap(), "Q3 review");
         assert_eq!(super::named("", &bare).unwrap(), super::UNTITLED);
+        let starter = scene::planche::project(scene::planche::STARTER).unwrap();
+        assert_eq!(super::named("", &starter).unwrap(), "New deck");
     }
 }

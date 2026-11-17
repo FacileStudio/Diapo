@@ -19,9 +19,11 @@ async fn allowed(state: &AppState, user_id: i64, id: Uuid, request: &PatchReques
 }
 
 /// `PATCH /decks/{id}`: the title (an editor), the space and the trash (a manager). Moving needs
-/// the right to edit in the target space; a deck moved to no space becomes the caller's own.
+/// the right to edit in the target space; a deck moved to no space becomes the caller's own. A
+/// move or a trash closes the deck's room, so its members reconnect under the new rules.
 pub async fn patch(state: &AppState, user_id: i64, id: Uuid, request: PatchRequest) -> Result<Deck> {
     allowed(state, user_id, id, &request).await?;
+    let moved = request.space_id.is_some() || request.trashed.is_some();
     let title = request.title.as_deref().map(title).transpose()?;
     let row = sqlx::query_as::<_, DeckRow>(concat!(
         "UPDATE decks SET title = coalesce($2, title), \
@@ -40,6 +42,9 @@ pub async fn patch(state: &AppState, user_id: i64, id: Uuid, request: PatchReque
     .await
     .map_err(db)?;
     state.events.changed(row.id, row.rev);
+    if moved {
+        state.hub.close(&[id]).await;
+    }
     let have = access::access(state, user_id, id).await?;
     Ok(answer(row, have))
 }

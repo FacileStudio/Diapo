@@ -27,12 +27,13 @@ A deck with no space is personal: only its owner reaches it. An instance admin g
 | Route | Needs | Does |
 |---|---|---|
 | `GET /decks` | session | Every deck the caller reaches, newest first, without sources. `?space_id=` keeps one space (`404` when not a member). `?trashed=true` lists the trash |
-| `POST /decks` | editor in the space | Body `{title?, space_id?, source?}`. `201` with the deck at `rev` 1. No `source` gives a one-slide starter. The title is the one given, else the source's `title`, else `Untitled` |
+| `POST /decks` | editor in the space | Body `{title?, space_id?, source?}`. `201` with the deck at `rev` 1. The source is stored as its planche projection (see "Formats"). No `source` gives a one-slide starter (`scene::planche::STARTER`). The title is the one given, else the source's (a legacy `title`, a projection's first frame name), else `Untitled` |
 | `GET /decks/{id}` | viewer | `{id, space_id, title, source, rev, created_at, updated_at, trashed_at, access}` |
-| `PUT /decks/{id}/source` | editor | Body `{source, rev}`. Saves and answers the deck at `rev + 1`. See "The rev rule" |
+| `PUT /decks/{id}/source` | editor | Body `{source, rev}`, in either format. Saves the projection and answers the deck at `rev + 1`. See "The rev rule" |
 | `PATCH /decks/{id}` | editor; manager for `space_id` and `trashed` | Body `{title?, space_id?, trashed?}`. `space_id: null` moves the deck to the caller's personal decks; a move needs editor rights in the target space. `trashed: true` trashes, `false` restores. Never changes `rev` |
 | `DELETE /decks/{id}` | manager | Deletes a trashed deck for good, with its revisions and assets. `412` when the deck is not in the trash |
 | `GET /decks/{id}/events` | viewer | Server-sent events. See "Events" |
+| `GET /decks/{id}/ws` | viewer | The deck's live room, a y-websocket. Editors write, viewers read. See "Rooms" |
 | `GET /decks/{id}/frame` | viewer | The deck compiled to one HTML document. `?scene=n` compiles scene `n` alone, from 0. See "The sandboxed frame" |
 | `GET /decks/{id}/assets` | viewer | `{assets: [{name, mime, size, sha256, created_at, url}]}`, by name |
 | `POST /decks/{id}/assets` | editor | Multipart: a `file` part, and an optional `name` part. `201` with the asset. The same name replaces the asset |
@@ -57,14 +58,27 @@ porte adds the sign-in routes (`/auth/oidc`, `/auth/oidc/callback`, `/auth/oidc/
 
 The public routes need no session and are listed under "Share links".
 
+## Formats
+
+A deck is a planche document under the `full` profile (`docs/planche.md`). `decks.source` holds
+its text projection, the one text every reader uses: the frame route, exports, captures, public
+pages and MCP compile it with `scene::planche::project`. `decks.state` holds the Yjs state of the
+same document once a room opened it, and is `NULL` before.
+
+Every write accepts either format. `scene::planche::convert` reads a projection, or converts a
+source in the older scene markdown (`docs/format.md`) slide by slide. The deck stores the
+projection of the result, so a `GET` after a markdown write answers a projection. A deck written
+before planche keeps its markdown source until its first write or its first room load; readers
+compile both.
+
 ## The rev rule
 
 A deck is a row holding one source text and a revision number, `rev`. Every write names the
 `rev` it read:
 
-- The deck is still at that `rev`: the source is saved, `rev` goes up by one, the new source is
-  kept in `deck_revisions` with its author and origin (`web` for a browser session, `cli` for a
-  token, `mcp` for an agent), and open editors are told.
+- The deck is still at that `rev`: the projection is saved, `rev` goes up by one, the new source
+  is kept in `deck_revisions` with its author and origin (`web` for a browser session, `cli` for
+  a token, `mcp` for an agent), and open editors are told.
 - The deck moved on: `409`, nothing changes. The body is tronc's `already_exists` envelope plus
   the `rev` the deck is at now:
 
@@ -75,10 +89,17 @@ A deck is a row holding one source text and a revision number, `rev`. Every writ
 The web editor, `diapo push` and the MCP tools all go through `modules::decks::write::save`, so
 the rule is one piece of code. There is no merge: the client reloads and the person decides.
 
+A deck with a live state is written inside its room (opened when needed): the room compares the
+`rev` with the one it last stored, applies the new document as one Yjs transaction that touches
+only the shapes that differ, sends it to open editors, stores it and answers the new `rev`. Edits
+made in the room since its last save (at most two seconds old) are stored with it. A deck with no
+state is written straight to its row.
+
 ## Invalid sources
 
-Every source is parsed with `scene::parse` before it is stored. A source that does not parse is
-refused with `422` and changes nothing. The body is tronc's `invalid_argument` envelope plus
+Every source is read with `scene::planche::convert`, then its projection is compiled with
+`scene::planche::project`, before it is stored. A source that does not read is refused with `422`
+and changes nothing. The body is tronc's `invalid_argument` envelope plus
 `errors`, one entry per problem in line order, with the 1-based line:
 
 ```json
@@ -91,7 +112,9 @@ refused with `422` and changes nothing. The body is tronc's `invalid_argument` e
 }
 ```
 
-The messages are the ones `docs/format.md` lists. A source over `SOURCE_MAX_BYTES` is `413`.
+The messages are the ones `docs/format.md` lists for markdown, and planche's projection reader
+for a projection. A source over `SOURCE_MAX_BYTES` is `413`, and so is one whose projection is
+over it (a markdown source grows when converted).
 
 ## Events
 
@@ -111,6 +134,39 @@ data: {"rev":2}
 - A comment line keeps the connection alive every 15 seconds.
 
 The broadcast lives in the process, which is one reason the app runs as one replica.
+
+## Rooms
+
+`GET /api/decks/{id}/ws` is the deck's room: one in-memory Yjs document per open deck, hosted
+by [salon](https://github.com/FacileStudio/salon) v0.1.0 over y-websocket (sync and awareness,
+`spec/PROTOCOL.md` there). A client opens it with salon's TS client, base `/api/decks`, room
+`{id}/ws`.
+
+- Auth is the porte session, cookie or bearer, like every deck route. A cookie upgrade from
+  another origin is `403`. The caller needs `viewer` (`404` otherwise); an `editor` writes, a
+  viewer only reads and sends presence. A deck in the trash is read-only for everyone.
+- Load: `decks.state` when set. Else the room converts `decks.source` and stores the state at
+  once; when the source was not already that projection (a legacy markdown deck), it stores the
+  projection too, as `rev + 1` with a `web` revision, after keeping the old source as a revision
+  if none held it. The `changed` event follows.
+- Every update is checked: planche's `full` profile on the shapes it touched, then the whole
+  projection must fit in `SOURCE_MAX_BYTES` and compile. A refused update is undone exactly and
+  its sender is closed.
+- Save: two seconds after the last accepted update, in one transaction, `state`, `source` (the
+  projection), `rev + 1`, `updated_at`, `updated_by` (the last writer) and a `web` revision. Then
+  the `changed` event, so previews and other listeners reload.
+- An empty room unloads after 60 seconds. A stop stores and closes every room.
+
+Close codes the client handles:
+
+| Code | Reason | Client |
+|---|---|---|
+| `1008` | planche's or the scene parser's message (a refused update) | stop, show why |
+| `1008` | `session ended`, `access revoked`, `deck deleted` | stop, show why |
+| `1009` | `update over 1 MiB`, `frame over 2 MiB`, or `the source is over the N-byte limit` | stop, show why |
+| `1011` | `room failed`, `failed to load a room`, `revert failed: ...` | stop, show why |
+| `1001` | `deck changed` (moved, trashed, restored), `server restarting`, `token age, reconnect` | reconnect, reload the deck |
+| `1013` | `too slow` | reconnect |
 
 ## Assets
 
@@ -350,7 +406,7 @@ verifier; the RFC 9728 metadata is at `/.well-known/oauth-protected-resource/mcp
 |---|---|---|---|
 | `diapo_list_decks` | read | `space_id?`, `trashed?`, `cursor?`, `limit?` (1 to 200, default 50) | `decks: [{id, title, space_id, rev, updated_at, url}]`, `next_cursor?`, `total` |
 | `diapo_get_deck` | read | `deck_id` | `id`, `title`, `space_id`, `rev`, `source`, `truncated`, `scenes`, `assets`, `trashed`, `url` |
-| `diapo_format_guide` | read | none | `guide`: `scene::FORMAT_GUIDE`, the text of `docs/format.md` |
+| `diapo_format_guide` | read | none | `guide`: `scene::planche::GUIDE` (`docs/planche.md`), then `scene::FORMAT_GUIDE` (`docs/format.md`) under `# Legacy scene markdown`: writes still accept markdown, and a converted slide's locked `html` shape holds compiled scene HTML |
 | `diapo_create_deck` | write | `title`, `source?`, `space_id?` | `id`, `title`, `rev`, `scenes`, `url` |
 | `diapo_write_deck` | write | `deck_id`, `source`, `rev` | `id`, `title`, `rev`, `scenes`, `url` |
 | `diapo_edit_deck` | write | `deck_id`, `old_string`, `new_string`, `rev` | `id`, `title`, `rev`, `scenes`, `url` |
@@ -358,7 +414,11 @@ verifier; the RFC 9728 metadata is at `/.well-known/oauth-protected-resource/mcp
 | `diapo_delete_deck` | write | `deck_id` | `status` (`pending_confirmation`, `declined`, `done`), `confirm_url?`, `message` |
 
 - `url` is the page a person opens: `https://<host>/decks/<id>`, on the origin of `MCP_RESOURCE`.
-- Writes call the same service functions as REST and emit the same `changed` event. A stale
+- `source` is the planche projection. `diapo_create_deck` and `diapo_write_deck` also take
+  scene markdown and convert it. `diapo_edit_deck` finds and replaces in the projection text.
+  `scenes` counts the slides.
+- Writes call the same service functions as REST and emit the same `changed` event. People
+  editing the deck see a write live. A stale
   `rev` and an invalid source are tool errors that say what to do next; nothing is saved.
 - `diapo_edit_deck` replaces one exact string. It refuses an `old_string` that is not in the
   source, and one that is there more than once.

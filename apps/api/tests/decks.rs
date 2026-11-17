@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::fixture::{self, SOURCE};
+use common::fixture::{self, SOURCE, projected};
 use common::{App, Person};
 use serde_json::{Value, json};
 
@@ -26,10 +26,10 @@ async fn a_deck_is_created_read_and_listed_with_its_source_and_rev() {
     let roles = fixture::roles(&app).await;
     let deck = fixture::deck(&app, &roles.member, Some(&roles.space), SOURCE).await;
     assert_eq!((deck["title"].clone(), deck["rev"].clone()), (json!("Q3 review"), json!(1)));
-    assert_eq!((deck["source"].clone(), deck["access"].clone()), (json!(SOURCE), json!("editor")));
+    assert_eq!((deck["source"].clone(), deck["access"].clone()), (json!(projected(SOURCE)), json!("editor")));
     let id = fixture::id(&deck);
     let read = app.call("GET", &format!("/api/decks/{id}"), Some(&roles.owner), None).await.json();
-    assert_eq!((read["source"].clone(), read["access"].clone()), (json!(SOURCE), json!("manager")));
+    assert_eq!((read["source"].clone(), read["access"].clone()), (json!(projected(SOURCE)), json!("manager")));
     let mine = fixture::deck(&app, &roles.member, None, "# Private\n").await;
     assert_eq!((mine["title"].clone(), mine["space_id"].clone()), (json!("Untitled"), Value::Null));
     let all = app.call("GET", "/api/decks", Some(&roles.member), None).await.json();
@@ -41,6 +41,9 @@ async fn a_deck_is_created_read_and_listed_with_its_source_and_rev() {
     assert_eq!(shared.as_array().unwrap().len(), 1);
     let starter = app.call("POST", "/api/decks", Some(&roles.member), Some(json!({"title": " Plan "}))).await.json();
     assert_eq!((starter["title"].clone(), starter["rev"].clone()), (json!("Plan"), json!(1)));
+    assert_eq!(starter["source"], json!(scene::planche::STARTER));
+    let untitled = app.call("POST", "/api/decks", Some(&roles.member), Some(json!({}))).await.json();
+    assert_eq!(untitled["title"], json!("New deck"));
 }
 
 #[tokio::test]
@@ -56,13 +59,13 @@ async fn a_stale_rev_is_a_409_that_changes_nothing_and_names_the_current_rev() {
     let body = stale.json();
     assert_eq!((body["error"]["code"].clone(), body["rev"].clone()), (json!("already_exists"), json!(2)));
     let read = app.call("GET", &format!("/api/decks/{id}"), Some(&roles.owner), None).await.json();
-    assert_eq!((read["source"].clone(), read["rev"].clone()), (json!("# Two\n"), json!(2)));
+    assert_eq!((read["source"].clone(), read["rev"].clone()), (json!(projected("# Two\n")), json!(2)));
     assert_eq!(save(&app, &roles.owner, &id, "# Three\n", 2).await.json()["rev"], json!(3));
     let kept = revisions(&app, &id).await;
     let expected = [(1, "cli", SOURCE), (2, "cli", "# Two\n"), (3, "cli", "# Three\n")];
     assert_eq!(kept.len(), expected.len());
-    for ((rev, origin, source), want) in kept.iter().zip(expected) {
-        assert_eq!((*rev, origin.as_str(), source.as_str()), want);
+    for ((rev, origin, source), (want_rev, want_origin, want)) in kept.iter().zip(expected) {
+        assert_eq!((*rev, origin.as_str(), source.clone()), (want_rev, want_origin, projected(want)));
     }
 }
 
@@ -80,7 +83,7 @@ async fn an_invalid_source_is_a_422_with_the_line_of_each_problem() {
     assert_eq!(body["errors"][0], json!({"line": 4, "message": "unknown key `colour`"}));
     assert_eq!(body["errors"][1]["line"], json!(7));
     let read = app.call("GET", &format!("/api/decks/{id}"), Some(&ada), None).await.json();
-    assert_eq!((read["source"].clone(), read["rev"].clone()), (json!(SOURCE), json!(1)));
+    assert_eq!((read["source"].clone(), read["rev"].clone()), (json!(projected(SOURCE)), json!(1)));
     let created = app.call("POST", "/api/decks", Some(&ada), Some(json!({"source": bad}))).await;
     assert_eq!((created.status.as_u16(), created.json()["errors"][0]["line"].clone()), (422, json!(4)));
     assert_eq!(app.call("POST", "/api/decks", Some(&ada), Some(json!({"source": ""}))).await.status, 422);
@@ -89,12 +92,15 @@ async fn an_invalid_source_is_a_422_with_the_line_of_each_problem() {
 #[tokio::test]
 async fn a_source_over_the_cap_is_a_413() {
     let Some(pool) = common::pool("diapo_decks_cap").await else { return };
-    let app = common::app_with(pool, &[("SOURCE_MAX_BYTES", "64")]).await;
+    let app = common::app_with(pool, &[("SOURCE_MAX_BYTES", "256")]).await;
     let ada = app.person("ada").await;
     let id = fixture::id(&fixture::deck(&app, &ada, None, "# Small\n").await);
-    let big = format!("# Big\n\n{}\n", "x".repeat(64));
+    let big = format!("# Big\n\n{}\n", "x".repeat(256));
     assert_eq!(save(&app, &ada, &id, &big, 1).await.status, 413);
     assert_eq!(app.call("POST", "/api/decks", Some(&ada), Some(json!({"source": big}))).await.status, 413);
+    let grows = format!("# Medium\n\n{}\n", "y".repeat(80));
+    assert!(grows.len() < 256 && projected(&grows).len() > 256);
+    assert_eq!(save(&app, &ada, &id, &grows, 1).await.status, 413);
 }
 
 #[tokio::test]

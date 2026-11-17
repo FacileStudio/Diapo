@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use std::time::Duration;
+
 use porte::exchange::Exchanger;
+use porte::session::Manager;
 use sqlx::PgPool;
 use tokio::sync::Semaphore;
 use tronc::mcp::Confirmations;
@@ -13,12 +16,19 @@ use crate::modules::assistant::Bulle;
 use crate::modules::events::Events;
 use crate::modules::exports::clap::Clap;
 use crate::modules::frame::FrameKey;
+use crate::modules::rooms::Hub;
 
 /// What every handler shares.
 #[derive(Clone)]
 pub struct AppState {
     /// The database.
     pub pool: PgPool,
+    /// Sessions, for the WebSocket origin check.
+    pub sessions: Manager,
+    /// The open deck rooms.
+    pub hub: Hub,
+    /// How often an open socket re-checks its session.
+    pub socket_recheck: Duration,
     /// The Registre issuer: the `provider` of every identity whose subject is a space member.
     pub issuer: Arc<str>,
     /// Where assets live.

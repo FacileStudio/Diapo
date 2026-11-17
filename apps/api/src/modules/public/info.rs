@@ -43,7 +43,7 @@ pub struct PublicDeck {
 pub async fn shared(state: &AppState, token: &str) -> Result<Shared> {
     let id = resolve(state, token).await?;
     let row = fetch(state, id).await?;
-    let project = scene::parse(&row.source).map_err(|errors| {
+    let project = scene::planche::project(&row.source).map_err(|errors| {
         Error::internal("a stored deck no longer parses", std::io::Error::other(errors.to_string()))
     })?;
     Ok(Shared { id, title: row.title, rev: row.rev, project })

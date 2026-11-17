@@ -48,8 +48,9 @@ async fn boot(data_dir: &Path) -> Option<(String, String)> {
     };
     let pairs = vec![("DATABASE_URL", "postgres://unused/x"), ("DATA_DIR", data_dir.to_str().unwrap())];
     let config = Config::from_vars(&Vars::from_pairs(pairs)).unwrap();
-    let kits = Kits::new(&config, &pool).await.unwrap();
-    let state = api::state::AppState { issuer: ISSUER.into(), ..api::server::state(&config, pool.clone(), &kits) };
+    let hub = api::modules::rooms::Hub::default();
+    let kits = Kits::new(&config, &pool, &hub).await.unwrap();
+    let state = api::state::AppState { issuer: ISSUER.into(), ..api::server::state(&config, pool.clone(), &kits, hub) };
     let router = api::router::build_router(state, &kits, None).unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
@@ -68,6 +69,10 @@ fn live(data_dir: &Path) -> Option<Live> {
 fn diapo(live: &Live, work: &Path, args: &[&str]) -> Output {
     let mut command = bin::command(work, work, args);
     command.env("DIAPO_SERVER_URL", &live.url).env("DIAPO_TOKEN", &live.token).output().unwrap()
+}
+
+fn projected(source: &str) -> String {
+    api::modules::decks::source::checked(source, usize::MAX).map(|prepared| prepared.source).unwrap_or_default()
 }
 
 fn text(bytes: &[u8]) -> String {
@@ -92,13 +97,9 @@ fn a_deck_goes_up_comes_down_and_a_stale_push_is_refused_by_the_real_api() {
     );
     let pulled = run(&["pull", &format!("{}/decks/{id}", live.url), "copy"]);
     assert!(pulled.status.success(), "{}", text(&pulled.stderr));
-    assert!(run(&["pull", "talk"]).status.success() && run(&["check", "copy"]).status.success());
-    for file in ["diapo.md", "assets/chart.svg"] {
-        assert_eq!(
-            fs::read(work.path().join("copy").join(file)).unwrap(),
-            fs::read(work.path().join("talk").join(file)).unwrap()
-        );
-    }
+    let read = |path: &str| fs::read(work.path().join(path)).unwrap();
+    assert_eq!(read("copy/diapo.md"), projected(&text(&read("talk/diapo.md"))).into_bytes());
+    assert_eq!(read("copy/assets/chart.svg"), read("talk/assets/chart.svg"));
     fs::write(work.path().join("copy/diapo.md"), "# From the copy\n").unwrap();
     fs::remove_file(work.path().join("copy/assets/chart.svg")).unwrap();
     assert!(text(&run(&["push", "copy"]).stdout).contains("(revision 2)"));
@@ -107,6 +108,6 @@ fn a_deck_goes_up_comes_down_and_a_stale_push_is_refused_by_the_real_api() {
     assert_eq!(stale.status.code(), Some(1));
     assert!(text(&stale.stderr).contains("since revision 1") && text(&stale.stderr).contains("`diapo pull`"));
     assert!(run(&["pull", "talk"]).status.code() == Some(1) && run(&["pull", "talk", "--force"]).status.success());
-    assert!(fs::read_to_string(work.path().join("talk/diapo.md")).unwrap().contains("From the copy"));
+    assert_eq!(fs::read_to_string(work.path().join("talk/diapo.md")).unwrap(), projected("# From the copy\n"));
     assert!(!work.path().join("talk/assets/chart.svg").exists() && run(&["push", "talk", "--force"]).status.success());
 }
