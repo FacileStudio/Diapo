@@ -7,7 +7,8 @@ import { createShape, emptyRich, writeFields, type Fields } from './write';
 /** Where a shape moves in its slide's paint order. */
 export type Reorder = 'front' | 'back' | 'forward' | 'backward';
 
-const SIZES: Record<Insertable, [number, number]> = {
+/** The default box of each insertable shape, in frame pixels. */
+export const SIZES: Record<Insertable, [number, number]> = {
 	text: [960, 160],
 	rect: [480, 320],
 	ellipse: [360, 360],

@@ -39,7 +39,18 @@ fn look(shape: &Shape) -> String {
     out.extend(style.font.map(|font| format!("font-family:{}", css(&font))));
     out.extend(style.size.map(|size| format!("font-size:{size}px")));
     out.extend(style.align.map(|align| format!("text-align:{}", css(&align))));
+    out.extend(style.valign.as_deref().and_then(placement));
     out.join(";")
+}
+
+fn placement(valign: &str) -> Option<String> {
+    let justify = match valign {
+        "top" => "flex-start",
+        "middle" => "center",
+        "bottom" => "flex-end",
+        _ => return None,
+    };
+    Some(format!("display:flex;flex-direction:column;justify-content:{justify}"))
 }
 
 fn media(shape: &Shape) -> String {

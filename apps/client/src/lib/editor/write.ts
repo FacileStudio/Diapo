@@ -15,20 +15,44 @@ import {
 /** The fields a caller may write on a shape: every plain key but `id`, `type` and the rich `text`. */
 export type Fields = Omit<Partial<Shape<FullType>>, 'id' | 'type' | 'text'>;
 
-const NUMERIC = new Set(['x', 'y', 'w', 'h', 'rot', 'start', 'duration', 'media_in']);
 const SKIPPED = new Set(['id', 'type', 'text', 'notes']);
+const FITS = new Set(['cover', 'contain', 'fill']);
+
+const whole = (max: number) => (value: unknown) => Math.min(max, Math.max(0, Math.round(Number(value) || 0)));
+const unit = (value: unknown) => Math.max(0, Math.min(1, Number(value) || 0));
+const flag = (value: unknown) => (typeof value === 'boolean' ? value : undefined);
+const text = (max: number) => (value: unknown) => (typeof value === 'string' ? value.slice(0, max) : undefined);
+const number = (value: unknown) => clampNumber(Number(value));
+
+const CLEANERS: Record<string, (value: unknown) => unknown> = {
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	rot: number,
+	start: number,
+	duration: number,
+	media_in: number,
+	step: whole(1000),
+	track: whole(64),
+	opacity: unit,
+	volume: unit,
+	locked: flag,
+	fixed_duration: flag,
+	enter: text(64),
+	layout: text(64),
+	order: text(64),
+	html: text(LIMITS.htmlChars),
+	fit: (value) => (typeof value === 'string' && FITS.has(value) ? value : undefined),
+	points: (value) => (Array.isArray(value) ? value.map((n) => clampNumber(Number(n))) : undefined),
+	style: (value) => cleanStyle(value, 'full'),
+	from: cleanBinding,
+	to: cleanBinding
+};
 
 function clean(key: string, value: unknown): unknown {
-	if (NUMERIC.has(key)) return clampNumber(value as number);
-	if (key === 'step' || key === 'track') return Math.max(0, Math.round(Number(value) || 0));
-	if (key === 'opacity' || key === 'volume') return Math.max(0, Math.min(1, Number(value) || 0));
-	if (key === 'points') return Array.isArray(value) ? value.map((n) => clampNumber(Number(n))) : undefined;
-	if (key === 'style') return cleanStyle(value);
-	if (key === 'from' || key === 'to') return cleanBinding(value);
-	if (key === 'locked' || key === 'fixed_duration') return typeof value === 'boolean' ? value : undefined;
-	if (key === 'html' && typeof value === 'string') return value.slice(0, LIMITS.htmlChars);
-	if (typeof value === 'string') return value.slice(0, 10_000);
-	return value;
+	const cleaner = CLEANERS[key];
+	return cleaner ? cleaner(value) : text(10_000)(value);
 }
 
 /** Writes `fields` into a shape's map: keys the `full` profile refuses are dropped, `undefined` deletes. */

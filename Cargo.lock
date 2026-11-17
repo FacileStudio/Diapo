@@ -785,7 +785,7 @@ dependencies = [
 
 [[package]]
 name = "diapo-cli"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "api",
  "axum",
@@ -2069,8 +2069,8 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "planche"
-version = "0.2.0"
-source = "git+https://github.com/FacileStudio/planche?tag=v0.2.0#e1fa98c90ead7fcf2b732200136904028ffd854e"
+version = "0.3.0"
+source = "git+https://github.com/FacileStudio/planche?tag=v0.3.0#927901c9eeedb14c0ef65f8e166f668737dcc464"
 dependencies = [
  "encre",
  "serde",
@@ -3189,7 +3189,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

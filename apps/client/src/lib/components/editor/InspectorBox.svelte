@@ -17,7 +17,9 @@
 	const rotation = $derived(common(shapes, (shape) => shape.rot));
 </script>
 
-<div class="grid grid-cols-2 gap-2" data-testid="inspect-box">
+<section class="flex flex-col gap-2" aria-labelledby="inspect-place" data-testid="inspect-box">
+	<h3 id="inspect-place" class="text-fc-xs font-semibold text-fc-fg-muted">{t('inspect.place')}</h3>
+	<div class="grid grid-cols-2 gap-2">
 	{#each FIELDS as field (field.key)}
 		<NumberField
 			label={t(field.label)}
@@ -42,4 +44,5 @@
 		{disabled}
 		onchange={(opacity) => apply(editor, shapes, { opacity })}
 	/>
-</div>
+	</div>
+</section>

@@ -3,7 +3,7 @@
 A Diapo deck is a planche document under the `full` profile. Its source is the planche text
 projection: plain text that reads like markdown and round-trips losslessly. This page is for
 agents and CLI users who read or write that text. The normative reference is the planche spec,
-section 2: https://github.com/FacileStudio/planche/blob/v0.2.0/spec/FORMAT.md
+section 2: https://github.com/FacileStudio/planche/blob/v0.3.0/spec/FORMAT.md
 
 ## The projection
 
@@ -12,7 +12,7 @@ section 2: https://github.com/FacileStudio/planche/blob/v0.2.0/spec/FORMAT.md
 - Each shape is one fenced block. The info string is the type, then `id="…"`, then the shape's
   keys as `key="value"` attributes. Escapes: `\"`, `\\` and `\n`.
 - Styles are one attribute per field: `style.fill`, `style.stroke`, `style.width`,
-  `style.font`, `style.size`, `style.align`.
+  `style.font`, `style.size`, `style.align`, `style.valign`.
 - A shape inside a frame is written inside the frame's fence, one backtick longer, without
   `parent`. Coordinates of such a shape are frame pixels.
 - Text shapes (`text`, `sticky`, `rect`, `ellipse`, `diamond`) hold Facile Markdown in their
@@ -107,7 +107,18 @@ is one `div.pl.pl-<type>` placed at `left`, `top`, `width` and `height` in frame
 
 On every text type `style.font`, `style.size` and `style.align` set `font-family`, `font-size`
 in pixels and `text-align`; on `sticky`, `rect`, `ellipse` and `diamond`, `style.stroke` and
-`style.width` draw an outline. On strokes they are the colour and the width. A body line that the scene splitter would read as `---` or a code fence is indented
+`style.width` draw an outline. On strokes they are the colour and the width.
+
+| Text alignment | Compiles to |
+|---|---|
+| `style.align` `left`, `center`, `right`, `justify` | `text-align` with that value |
+| no `style.align` | left on `text` and `sticky`, centred on `rect`, `ellipse` and `diamond` |
+| `style.valign` `top` | `display:flex;flex-direction:column;justify-content:flex-start` |
+| `style.valign` `middle` | the same column with `justify-content:center` |
+| `style.valign` `bottom` | the same column with `justify-content:flex-end` |
+| no `style.valign` | top on `text` and `sticky`, middle on `rect`, `ellipse` and `diamond` |
+
+A body line that the scene splitter would read as `---` or a code fence is indented
 by four spaces. The compiled scene passes the same checks as any other: a remote URL in an
 asset, an image or an `html` shape is refused. `enter`, `track`, `media_in`, `volume`, bindings
 and nested frames are kept in the document and not compiled yet.

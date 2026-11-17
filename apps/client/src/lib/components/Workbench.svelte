@@ -16,6 +16,7 @@
 	import ConnectionBanner from './editor/ConnectionBanner.svelte';
 	import Inspector from './editor/Inspector.svelte';
 	import NotesPanel from './editor/NotesPanel.svelte';
+	import ShortcutsDialog from './editor/ShortcutsDialog.svelte';
 	import SlideRail from './editor/SlideRail.svelte';
 	import Stage from './editor/Stage.svelte';
 	import Toolbar from './editor/Toolbar.svelte';
@@ -41,6 +42,7 @@
 	let exportOpen = $state(false);
 	let previewing = $state(false);
 	let notesOpen = $state(true);
+	let shortcutsOpen = $state(false);
 	let assistant = $state(DEFAULT_ASSISTANT.name);
 	let bulleOpen = $state(sidebarOpen(owner));
 
@@ -126,9 +128,14 @@
 					<PreviewPane src={backend.frameUrl(id, { stamp })} {ratio} {playhead} />
 				</div>
 			{:else}
-				<Toolbar {editor} {assets} onfiles={() => (assetsOpen = true)} />
+				<Toolbar {editor} {assets} onfiles={() => (assetsOpen = true)} onhelp={() => (shortcutsOpen = true)} />
 				<div class="relative min-h-0 flex-1 overflow-hidden rounded-fc-lg bg-fc-component">
-					<Stage {editor} src={(name) => deckAssetUrl(id, name)} />
+					<Stage
+						{editor}
+						src={(name) => deckAssetUrl(id, name)}
+						onfiles={() => (assetsOpen = true)}
+						onhelp={() => (shortcutsOpen = true)}
+					/>
 					{#if !editor.synced || editor.stopped}
 						<div
 							class="absolute inset-0 flex items-center justify-center gap-2 bg-fc-component/70 text-fc-sm text-fc-fg-muted"
@@ -148,6 +155,7 @@
 <AssetsPanel bind:open={assetsOpen} {id} bind:assets oninsert={place} />
 <ShareDialog bind:open={shareOpen} {id} {title} width={editor.size.width} height={editor.size.height} />
 <ExportDialog bind:open={exportOpen} {id} />
+<ShortcutsDialog bind:open={shortcutsOpen} />
 <BulleSidebar
 	bind:open={bulleOpen}
 	{assistant}

@@ -1,8 +1,9 @@
 import { rotatedBox, type Box, type FullType, type Handle, type Point, type Shape } from '@facile/planche';
+import { EditorActions } from './actions';
 import { stageCommand, type StageCommand } from './keys';
 import { areaOf, marquee, moveDrag, resizeDrag, rotateDrag, type Guides } from './pointer';
-import { duplicateShapes } from './shapes';
-import type { DeckEditor } from './types';
+import { SIZES } from './shapes';
+import type { DeckEditor, Insertable } from './types';
 import type { Fields } from './write';
 
 /** What a pointer went down on. */
@@ -23,7 +24,11 @@ const NO_GUIDES: Guides = { x: [], y: [] };
 /** The pointer and keyboard behaviour of the stage over one deck editor, with the drag previewed locally. */
 export class StageController {
 	readonly editor: DeckEditor;
+	readonly actions: EditorActions;
 	scale = $state(1);
+	hover = $state<string | null>(null);
+	/** Called when the keyboard asks for the shortcut list. */
+	onhelp: () => void = () => undefined;
 	preview = $state.raw<Map<string, Fields>>(new Map());
 	guides = $state.raw<Guides>(NO_GUIDES);
 	area = $state.raw<Box | null>(null);
@@ -31,6 +36,7 @@ export class StageController {
 
 	constructor(editor: DeckEditor) {
 		this.editor = editor;
+		this.actions = new EditorActions(editor);
 	}
 
 	/** The shapes of the shown slide, in paint order. */
@@ -121,6 +127,15 @@ export class StageController {
 		if (this.editor.text(id)) this.editor.edit(id);
 	}
 
+	/** Inserts a `kind` shape centred on `at`, kept inside the slide, and answers its id. */
+	insertAt(kind: Insertable, at: Point, asset?: string): string {
+		const { width, height } = this.editor.size;
+		const [w, h] = SIZES[kind].map((side, index) => Math.min(side, index ? height : width));
+		const inside = (value: number, span: number, room: number) => Math.round(Math.max(0, Math.min(room - span, value)));
+		const box = { x: inside(at.x - w / 2, w, width), y: inside(at.y - h / 2, h, height), w, h };
+		return this.editor.insert(kind, box, asset);
+	}
+
 	/** Runs the command of a key press; answers whether the stage used it. */
 	key(event: KeyboardEvent): boolean {
 		const command = stageCommand(event, this.editor.editing !== null);
@@ -130,19 +145,22 @@ export class StageController {
 	}
 
 	#run(command: StageCommand): void {
-		const { editor } = this;
+		const { editor, actions } = this;
 		const selected = this.#selected();
 		if (command.kind === 'nudge') {
 			const free = selected.filter((shape) => !shape.locked);
 			const nudge = (shape: Shape<FullType>) => ({ x: shape.x + command.dx, y: shape.y + command.dy });
 			editor.doc.transact(() => free.forEach((shape) => editor.update(shape.id, nudge(shape))));
-		} else if (command.kind === 'remove') editor.remove(editor.selection);
+		} else if (command.kind === 'reorder') actions.reorder(command.where);
+		else if (command.kind === 'align') actions.textAlign({ align: command.align });
+		else if (command.kind === 'remove') editor.remove(editor.selection);
 		else if (command.kind === 'undo') editor.undo();
 		else if (command.kind === 'redo') editor.redo();
-		else if (command.kind === 'duplicate') editor.select(duplicateShapes(editor.doc, editor.selection));
+		else if (command.kind === 'duplicate') actions.duplicate();
 		else if (command.kind === 'edit' && selected.length === 1) this.open(selected[0].id);
 		else if (command.kind === 'leave' && editor.editing) editor.edit(null);
 		else if (command.kind === 'leave') editor.select([]);
 		else if (command.kind === 'all') editor.select(this.shapes.map((shape) => shape.id));
+		else if (command.kind === 'help') this.onhelp();
 	}
 }

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { Input, Switch } from '@facile/muse';
+	import { EditorActions } from '$lib/editor/actions';
 	import type { DeckEditor } from '$lib/editor/types';
 	import { t } from '$lib/i18n';
 	import { apply, common } from './inspect';
 	import InspectorBox from './InspectorBox.svelte';
 	import InspectorStyle from './InspectorStyle.svelte';
+	import InspectorText from './InspectorText.svelte';
 	import NumberField from './NumberField.svelte';
 
 	let { editor }: { editor: DeckEditor } = $props();
@@ -13,6 +15,7 @@
 	const shapes = $derived(
 		editor.slides.flatMap((found) => found.shapes).filter((shape) => editor.selection.includes(shape.id))
 	);
+	const actions = $derived(new EditorActions(editor));
 	const disabled = $derived(!editor.synced || editor.stopped !== null);
 	const locked = $derived(common(shapes, (shape) => shape.locked ?? false));
 
@@ -23,7 +26,7 @@
 </script>
 
 <aside
-	class="flex min-h-0 flex-col gap-4 overflow-y-auto rounded-fc-lg bg-fc-component p-3"
+	class="flex min-h-0 flex-col gap-5 overflow-y-auto rounded-fc-lg bg-fc-component p-3"
 	aria-label={t('inspect.title')}
 	data-testid="inspector"
 	data-count={shapes.length}
@@ -50,20 +53,24 @@
 	{:else}
 		<h2 class="text-fc-sm font-semibold text-fc-fg">{t('inspect.count', { count: shapes.length })}</h2>
 		<InspectorBox {editor} {shapes} {disabled} />
+		<InspectorText {actions} {shapes} {disabled} />
 		<InspectorStyle {editor} {shapes} {disabled} />
-		<NumberField
-			label={t('inspect.step')}
-			value={common(shapes, (shape) => shape.step ?? 0)}
-			min={0}
-			max={1000}
-			{disabled}
-			onchange={(step) => apply(editor, shapes, { step: Math.round(step) })}
-		/>
-		<Switch
-			label={t('inspect.lock')}
-			checked={locked ?? false}
-			{disabled}
-			onchange={(event) => apply(editor, shapes, { locked: event.currentTarget.checked })}
-		/>
+		<section class="flex flex-col gap-2" aria-labelledby="inspect-motion">
+			<h3 id="inspect-motion" class="text-fc-xs font-semibold text-fc-fg-muted">{t('inspect.motion')}</h3>
+			<NumberField
+				label={t('inspect.step')}
+				value={common(shapes, (shape) => shape.step ?? 0)}
+				min={0}
+				max={1000}
+				{disabled}
+				onchange={(step) => apply(editor, shapes, { step: Math.round(step) || undefined })}
+			/>
+			<Switch
+				label={t('inspect.lock')}
+				checked={locked ?? false}
+				{disabled}
+				onchange={(event) => actions.lock(event.currentTarget.checked)}
+			/>
+		</section>
 	{/if}
 </aside>

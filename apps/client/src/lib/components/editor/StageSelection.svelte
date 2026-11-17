@@ -1,106 +1,99 @@
 <script lang="ts">
-	import { HANDLES, rotatedBox, union, type FullType, type Handle, type Shape } from '@facile/planche';
+	import { CORNERS, rotatedBox, union, type FullType, type Handle, type Shape } from '@facile/planche';
+	import { handleCursor } from './cursors';
+	import StageOutline from './StageOutline.svelte';
 
-	let { shapes, scale }: { shapes: Shape<FullType>[]; scale: number } = $props();
+	let {
+		shapes,
+		scale,
+		handles = true
+	}: {
+		/** The selected shapes, in frame pixels. */
+		shapes: Shape<FullType>[];
+		/** Screen pixels per frame pixel. */
+		scale: number;
+		/** False while a text box has the keyboard: the outline stays, the knobs go. */
+		handles?: boolean;
+	} = $props();
 
-	const POSITIONS: Record<Handle, [number, number]> = {
+	const POS: Record<Handle, [number, number]> = {
 		nw: [0, 0],
-		n: [50, 0],
-		ne: [100, 0],
-		e: [100, 50],
-		se: [100, 100],
-		s: [50, 100],
-		sw: [0, 100],
-		w: [0, 50]
+		n: [0.5, 0],
+		ne: [1, 0],
+		e: [1, 0.5],
+		se: [1, 1],
+		s: [0.5, 1],
+		sw: [0, 1],
+		w: [0, 0.5]
 	};
 
-	const CURSORS: Record<Handle, string> = {
-		nw: 'nwse-resize',
-		se: 'nwse-resize',
-		ne: 'nesw-resize',
-		sw: 'nesw-resize',
-		n: 'ns-resize',
-		s: 'ns-resize',
-		e: 'ew-resize',
-		w: 'ew-resize'
-	};
+	const EDGES = [
+		{ handle: 'n', place: '-top-1.5 right-2 left-2 h-3' },
+		{ handle: 's', place: 'right-2 -bottom-1.5 left-2 h-3' },
+		{ handle: 'w', place: 'top-2 bottom-2 -left-1.5 w-3' },
+		{ handle: 'e', place: 'top-2 -right-1.5 bottom-2 w-3' }
+	] as const;
 
 	const single = $derived(shapes.length === 1 ? shapes[0] : null);
-	const frame = $derived(single ?? { ...(union(shapes.map((shape) => rotatedBox(shape))) ?? { x: 0, y: 0, w: 0, h: 0 }), rot: 0 });
-	const movable = $derived(shapes.some((shape) => !shape.locked));
-	const line = $derived(2 / scale);
-	const knob = $derived(12 / scale);
+	const box = $derived(single ?? union(shapes.map((shape) => rotatedBox(shape))));
+	const rot = $derived(single?.rot ?? 0);
+	const movable = $derived(handles && shapes.some((shape) => !shape.locked));
 </script>
 
-{#if shapes.length}
+{#each shapes as shape (shape.id)}
+	<StageOutline {shape} {scale} />
+{/each}
+{#if box && movable}
 	<div
-		class="selection"
-		style:left="{frame.x}px"
-		style:top="{frame.y}px"
-		style:width="{frame.w}px"
-		style:height="{frame.h}px"
-		style:transform={frame.rot ? `rotate(${frame.rot}rad)` : undefined}
-		style:outline-width="{line}px"
+		class="pointer-events-none absolute top-0 left-0 z-10 origin-center"
+		style:width="{box.w * scale}px"
+		style:height="{box.h * scale}px"
+		style:transform="translate({box.x * scale}px, {box.y * scale}px) rotate({rot}rad)"
+		data-testid="selection"
 	>
-		{#if movable}
-			{#each HANDLES as handle (handle)}
+		{#each EDGES as edge (edge.handle)}
+			<span
+				class="pointer-events-auto absolute touch-none {edge.place}"
+				style:cursor={handleCursor(edge.handle, rot)}
+				data-handle={edge.handle}
+			></span>
+		{/each}
+		{#each CORNERS as handle (handle)}
+			<span
+				class="handle pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center"
+				style:left="{POS[handle][0] * 100}%"
+				style:top="{POS[handle][1] * 100}%"
+				style:cursor={handleCursor(handle, rot)}
+				data-handle={handle}
+			>
+				<span class="size-3 rounded-[3px] bg-fc-info shadow-sm"></span>
+			</span>
+		{/each}
+		{#if single}
+			<span
+				class="handle group pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center"
+				style:left="50%"
+				style:top="-22px"
+				data-rotate
+			>
 				<span
-					data-handle={handle}
-					class="knob"
-					style:left="{POSITIONS[handle][0]}%"
-					style:top="{POSITIONS[handle][1]}%"
-					style:width="{knob}px"
-					style:height="{knob}px"
-					style:cursor={CURSORS[handle]}
+					class="size-3 rounded-fc-pill bg-fc-info shadow-sm transition-transform group-hover:scale-125 motion-reduce:transition-none"
 				></span>
-			{/each}
-			{#if single}
-				<span
-					data-rotate
-					class="knob rotate"
-					style:left="50%"
-					style:top="{-28 / scale}px"
-					style:width="{knob}px"
-					style:height="{knob}px"
-				></span>
-			{/if}
+			</span>
 		{/if}
 	</div>
-	{#if !single}
-		{#each shapes as shape (shape.id)}
-			<div
-				class="member"
-				style:left="{shape.x}px"
-				style:top="{shape.y}px"
-				style:width="{shape.w}px"
-				style:height="{shape.h}px"
-				style:transform={shape.rot ? `rotate(${shape.rot}rad)` : undefined}
-				style:outline-width="{line / 2}px"
-			></div>
-		{/each}
-	{/if}
 {/if}
 
 <style>
-	.selection,
-	.member {
-		position: absolute;
-		pointer-events: none;
-		outline-style: solid;
-		outline-color: var(--color-fc-accent);
-		z-index: 2;
+	.handle {
+		width: 24px;
+		height: 24px;
 	}
 
-	.knob {
-		position: absolute;
-		pointer-events: auto;
-		transform: translate(-50%, -50%);
-		border-radius: 9999px;
-		background: var(--color-fc-accent);
-		box-shadow: 0 0 0 2px #fff;
-	}
-
-	.rotate {
-		cursor: grab;
+	@media (pointer: coarse) {
+		.handle {
+			width: 44px;
+			height: 44px;
+		}
 	}
 </style>

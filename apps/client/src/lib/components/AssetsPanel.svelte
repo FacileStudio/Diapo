@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Drawer, Dropzone, Icon, IconButton, Spinner, icons, toast } from '@facile/muse';
+	import { ContextMenu, Drawer, Dropzone, Icon, IconButton, Spinner, icons, toast, type MenuEntry } from '@facile/muse';
 	import { backend } from '$lib/backend';
 	import { t } from '$lib/i18n';
 	import type { Asset } from '$lib/types';
@@ -47,6 +47,16 @@
 		}
 	}
 
+	function entries(target: Element): MenuEntry[] {
+		const name = target.closest<HTMLElement>('[data-asset]')?.dataset.asset;
+		const asset = assets.find((known) => known.name === name);
+		if (!asset) return [];
+		const insert: MenuEntry[] = placeable(asset)
+			? [{ label: t('assets.place'), icon: icons.plus, onselect: () => oninsert(asset) }, { separator: true }]
+			: [];
+		return [...insert, { label: t('assets.remove'), icon: icons.remove, tone: 'danger', onselect: () => void remove(asset) }];
+	}
+
 	$effect(() => {
 		if (open) void refresh().catch(failed);
 	});
@@ -59,9 +69,10 @@
 		{#if assets.length === 0 && !busy}
 			<p class="text-fc-sm text-fc-fg-muted">{t('assets.empty')}</p>
 		{/if}
+		<ContextMenu items={entries} label={t('assets.menu')}>
 		<ul class="flex flex-col gap-2">
 			{#each assets as asset (asset.name)}
-				<li class="flex items-center gap-2 rounded-fc-md bg-fc-surface py-1 pr-1 pl-3">
+				<li class="flex items-center gap-2 rounded-fc-md bg-fc-surface py-1 pr-1 pl-3" data-asset={asset.name}>
 					<Icon icon={icons.folder} size={16} class="shrink-0 text-fc-fg-muted" />
 					<span class="min-w-0 flex-1 truncate font-fc-mono text-fc-xs text-fc-fg">{asset.name}</span>
 					{#if placeable(asset)}
@@ -79,5 +90,6 @@
 				</li>
 			{/each}
 		</ul>
+		</ContextMenu>
 	</div>
 </Drawer>

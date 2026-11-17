@@ -111,3 +111,16 @@ fn a_projection_error_reports_its_line() {
     assert_eq!(errors.0[0].line, 6, "{errors}");
     assert_eq!(project(source).unwrap_err(), errors);
 }
+
+#[test]
+fn text_alignment_compiles_to_text_align_and_a_flex_column() {
+    let source = "---\nplanche: 1\nsize: 1920x1080\n---\n\n```frame id=\"s\" x=\"0\" y=\"0\" w=\"1920\" h=\"1080\" \
+                  order=\"a0\"\n```\n\n```text id=\"a\" x=\"0\" y=\"0\" w=\"800\" h=\"400\" z=\"a0\" parent=\"s\" \
+                  style.align=\"justify\" style.valign=\"bottom\"\nHello\n```\n\n```rect id=\"b\" x=\"0\" y=\"500\" \
+                  w=\"800\" h=\"400\" z=\"a1\" parent=\"s\" style.valign=\"top\"\nTop\n```\n";
+    let compiled = project(source).unwrap();
+    let html = body_of(&scene::compile(&compiled, &scene::Options::new()));
+    let column = "display:flex;flex-direction:column;justify-content:";
+    assert!(html.contains(&format!("text-align:justify;{column}flex-end")), "{html}");
+    assert!(html.contains(&format!("{column}flex-start")), "{html}");
+}

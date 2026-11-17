@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { compareZ, type FullType, type Shape } from '@facile/planche';
+	import { defaultAlign, valignStyle } from '$lib/editor/css';
 	import type { Slide } from '$lib/editor/types';
 
 	let {
@@ -36,8 +37,9 @@
 	function paint(shape: Shape<FullType>): string {
 		const fill = shape.style.fill ?? (FILLED.has(shape.type) ? 'var(--color-fc-surface)' : 'transparent');
 		const line = shape.style.stroke ? `box-shadow:inset 0 0 0 ${shape.style.width ?? 2}px ${shape.style.stroke};` : '';
-		const font = `font-size:${((shape.style.size ?? 32) / size.width) * 100}cqw;text-align:${shape.style.align ?? 'left'};`;
-		return `background:${fill};${line}${font}${CLIP[shape.type] ?? ''}`;
+		const font = `font-size:${((shape.style.size ?? 32) / size.width) * 100}cqw;text-align:${shape.style.align ?? defaultAlign(shape.type)};`;
+		const column = valignStyle(shape.style.valign);
+		return `background:${fill};${line}${font}${column && `${column};`}${CLIP[shape.type] ?? ''}`;
 	}
 </script>
 

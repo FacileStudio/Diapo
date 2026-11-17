@@ -20,6 +20,9 @@ describe('stage', () => {
 		);
 		expect(lookStyle({ ...base, type: 'text', style: { fill: '#00f', stroke: '#000' } })).toBe('color:#00f');
 		expect(lookStyle({ ...base, type: 'sticky' })).toBe('background:#fde68a');
+		expect(lookStyle({ ...base, type: 'text', style: { align: 'justify', valign: 'bottom' } })).toBe(
+			'text-align:justify;display:flex;flex-direction:column;justify-content:flex-end'
+		);
 		const arrow = strokeOf({ ...base, type: 'arrow', w: 0, h: 0, points: [0, 0, 100, 0] });
 		expect(arrow).toMatchObject({ w: 100, h: 1, path: 'M0 0 L100 0', head: '100,0 78.94,11.51 78.94,-11.51', width: 4 });
 		expect(strokeOf({ ...base, type: 'ink', points: [0, 0, 1, 5, 5, 1] }).head).toBe('');
