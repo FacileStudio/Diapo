@@ -11,7 +11,7 @@ export default defineConfig({
 	},
 	resolve: process.env.VITEST ? { conditions: ['browser'] } : {},
 	server: {
-		proxy: { '/api': { target: api, changeOrigin: true } }
+		proxy: { '/api': { target: api, changeOrigin: true, ws: true } }
 	},
 	test: {
 		include: ['src/**/*.test.ts'],

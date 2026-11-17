@@ -11,15 +11,16 @@ use crate::project::ENTRY;
 use crate::sync::ASSETS_DIR;
 use crate::ui;
 
-/// The starter deck. `{{title}}` is replaced by the folder's name.
-pub const STARTER: &str = include_str!("../../starter/diapo.md");
+const PLACEHOLDER: &str = "New deck";
 
-const CHART: &str = include_str!("../../starter/assets/chart.svg");
-
-/// The starter deck titled `title`.
+/// The planche starter deck, `scene::planche::STARTER`, titled `title`.
 pub fn starter(title: &str) -> String {
-    let safe: String = title.chars().filter(|letter| !letter.is_control() && *letter != '"').collect();
-    STARTER.replace("title: {{title}}", &format!("title: \"{safe}\"")).replace("{{title}}", &safe)
+    let safe: String =
+        title.chars().filter(|letter| !letter.is_control() && !matches!(letter, '"' | '\\' | '`')).collect();
+    match safe.trim() {
+        "" => scene::planche::STARTER.to_owned(),
+        safe => scene::planche::STARTER.replace(PLACEHOLDER, safe),
+    }
 }
 
 /// Creates the folder, its `diapo.md` and its `assets/`.
@@ -32,7 +33,6 @@ pub fn run(args: &NewArgs) -> Outcome {
     let title = dir.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
     fs::create_dir_all(dir.join(ASSETS_DIR))?;
     fs::write(dir.join(ENTRY), starter(&title))?;
-    fs::write(dir.join(ASSETS_DIR).join("chart.svg"), CHART)?;
     if ui::json() {
         print_json(&json!({ "dir": dir, "entry": dir.join(ENTRY) }));
         return Ok(());

@@ -1,4 +1,5 @@
 import type { Awareness } from 'y-protocols/awareness';
+import type { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import type { BoardDoc, Box, FullType, Shape } from '@facile/planche';
 import type { Connection, Stop } from '@facile/salon';
@@ -31,6 +32,8 @@ export type Insertable = 'text' | 'rect' | 'ellipse' | 'diamond' | 'image' | 'vi
 export interface DeckEditor {
 	readonly doc: BoardDoc;
 	readonly awareness: Awareness;
+	/** The room's provider, for encre's carets in text boxes; null for a local document. */
+	readonly provider: WebsocketProvider | null;
 	readonly size: { width: number; height: number };
 	readonly connection: Connection;
 	readonly stopped: { stop: Stop; reason: string } | null;
