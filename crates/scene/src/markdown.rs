@@ -116,3 +116,12 @@ pub(crate) fn render(body: &str) -> (String, Audit) {
     }
     walker.finish()
 }
+
+/// Renders `body` as [`render`] does, with step markers left as text: the HTML of a planche
+/// rich text.
+#[cfg(feature = "planche")]
+pub(crate) fn plain(body: &str) -> String {
+    let mut out = String::new();
+    html::push_html(&mut out, Parser::new_ext(body, Options::ENABLE_TABLES));
+    out
+}

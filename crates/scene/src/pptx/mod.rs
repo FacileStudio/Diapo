@@ -8,14 +8,14 @@
 //! slide that shows the picture a renderer made of it ([`write_with`]), or says so in a text box
 //! ([`RAW_TEXT`]) when there is none; its notes say which. Step reveals and timelines do not exist in a file: every step is shown.
 
-mod geometry;
+pub(crate) mod geometry;
 mod image;
-mod layout;
+pub(crate) mod layout;
 mod masters;
-mod model;
+pub(crate) mod model;
 mod palette;
 mod parts;
-mod read;
+pub(crate) mod read;
 mod shapes;
 mod slide;
 mod text;

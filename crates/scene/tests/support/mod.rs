@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read};
+use std::path::Path;
 
 pub const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\x03\x20\0\0\x01\x90\x08\x06\0\0\0\x1f\x15\xc4\x89";
 
@@ -55,4 +56,23 @@ pub fn well_formed(name: &str, xml: &str) {
     }
     assert!(open.is_empty(), "{name}: left open {open:?}");
     assert_eq!(xml.matches('"').count() % 2, 0, "{name}: an odd number of quotes");
+}
+
+fn cut(text: &str, open: &str, close: &str, label: &str) -> String {
+    let start = text.find(open).unwrap() + open.len();
+    let end = start + text[start..].find(close).unwrap();
+    format!("{}{label}{}", &text[..start], &text[end..])
+}
+
+pub fn body_of(html: &str) -> String {
+    let styled = cut(html, "</title>\n<style>", "</style>", "/* theme */");
+    cut(&styled, "<script>", "</script>\n</head>", "/* runtime */")
+}
+
+pub fn golden(path: &Path, actual: &str) {
+    if std::env::var_os("UPDATE_GOLDEN").is_some() {
+        std::fs::write(path, actual).unwrap();
+    }
+    let expected = std::fs::read_to_string(path).unwrap_or_default();
+    assert!(expected == actual, "{} differs from the compiled output:\n{actual}", path.display());
 }
