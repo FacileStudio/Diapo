@@ -49,6 +49,7 @@ fn pull_takes_the_source_unless_the_folder_holds_unsynced_edits() {
     assert_eq!(plan::pull_source("base", Some("remote"), "remote"), SourcePull::UpToDate);
     assert_eq!(plan::pull_source("base", Some("mine"), "remote"), SourcePull::LocalChanges);
     assert_eq!(plan::pull_source("", Some("mine"), "remote"), SourcePull::LocalChanges);
+    assert_eq!(plan::pull_source("legacy", Some("legacy"), "projection"), SourcePull::Take);
 }
 
 #[test]

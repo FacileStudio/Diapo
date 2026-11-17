@@ -80,6 +80,8 @@ fn a_deck_goes_up_comes_down_and_a_stale_push_is_refused_by_the_real_api() {
     let Some(live) = live(&work.path().join("data")) else { return };
     let run = |args: &[&str]| diapo(&live, work.path(), args);
     assert!(run(&["new", "talk"]).status.success());
+    fs::write(work.path().join("talk/diapo.md"), "# Talk\n\n![](assets/chart.svg)\n").unwrap();
+    fs::write(work.path().join("talk/assets/chart.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>").unwrap();
     let created = run(&["push", "talk", "--create", "--json"]);
     assert!(created.status.success(), "{}", text(&created.stderr));
     let answer: serde_json::Value = serde_json::from_slice(&created.stdout).unwrap();
@@ -90,6 +92,7 @@ fn a_deck_goes_up_comes_down_and_a_stale_push_is_refused_by_the_real_api() {
     );
     let pulled = run(&["pull", &format!("{}/decks/{id}", live.url), "copy"]);
     assert!(pulled.status.success(), "{}", text(&pulled.stderr));
+    assert!(run(&["pull", "talk"]).status.success() && run(&["check", "copy"]).status.success());
     for file in ["diapo.md", "assets/chart.svg"] {
         assert_eq!(
             fs::read(work.path().join("copy").join(file)).unwrap(),
@@ -104,6 +107,6 @@ fn a_deck_goes_up_comes_down_and_a_stale_push_is_refused_by_the_real_api() {
     assert_eq!(stale.status.code(), Some(1));
     assert!(text(&stale.stderr).contains("since revision 1") && text(&stale.stderr).contains("`diapo pull`"));
     assert!(run(&["pull", "talk"]).status.code() == Some(1) && run(&["pull", "talk", "--force"]).status.success());
-    assert_eq!(fs::read_to_string(work.path().join("talk/diapo.md")).unwrap(), "# From the copy\n");
+    assert!(fs::read_to_string(work.path().join("talk/diapo.md")).unwrap().contains("From the copy"));
     assert!(!work.path().join("talk/assets/chart.svg").exists() && run(&["push", "talk", "--force"]).status.success());
 }

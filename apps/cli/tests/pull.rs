@@ -55,3 +55,27 @@ fn pull_refuses_an_asset_name_that_leaves_the_folder_and_reports_a_missing_deck(
     assert_eq!(missing.status.code(), Some(1));
     assert!(text(&missing.stderr).contains("the server answered 404: deck not found"), "{}", text(&missing.stderr));
 }
+
+#[test]
+fn a_pull_after_a_legacy_push_takes_the_server_projection_without_a_conflict() {
+    let (url, _) = mock(|line, _| match line {
+        "PUT /api/decks/d1/source" => (200, r#"{"rev":4}"#.to_owned()),
+        "GET /api/decks/d1" => {
+            let deck = serde_json::json!({ "id": "d1", "title": "Mine", "source": scene::planche::STARTER, "rev": 4 });
+            (200, deck.to_string())
+        }
+        _ => (200, r#"{"assets":[]}"#.to_owned()),
+    });
+    let work = linked_folder(&url, &[]);
+    let dir = work.path().join("talk");
+    assert!(diapo(&work, &["push", "talk"]).status.success());
+    let pulled = diapo(&work, &["pull", "talk"]);
+    assert!(pulled.status.success(), "{}", text(&pulled.stderr));
+    assert_eq!(fs::read_to_string(dir.join("diapo.md")).unwrap(), scene::planche::STARTER);
+    assert!(text(&diapo(&work, &["pull", "talk"]).stdout).contains("talk is up to date (revision 4)"));
+    fs::write(dir.join("diapo.md"), "# Mine\n").unwrap();
+    assert!(diapo(&work, &["push", "talk"]).status.success());
+    fs::write(dir.join("diapo.md"), "# Mine, edited after the push\n").unwrap();
+    let refused = diapo(&work, &["pull", "talk"]);
+    assert_eq!(refused.status.code(), Some(1), "an edit made after the push is still a local change");
+}

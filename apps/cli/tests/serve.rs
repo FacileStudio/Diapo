@@ -44,6 +44,7 @@ fn serve_shows_the_deck_and_its_files_reloads_on_change_and_overlays_errors() {
     let work = tempfile::tempdir().unwrap();
     assert!(bin::command(work.path(), work.path(), &["new", "talk"]).status().unwrap().success());
     fs::write(work.path().join("talk/.diapo.json"), "{}").unwrap();
+    fs::write(work.path().join("talk/assets/chart.svg"), "<svg/>").unwrap();
     let mut child = bin::command(work.path(), work.path(), &["serve", "talk", "-p", "0", "--json"]);
     let mut served = Served(child.stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap());
     let mut first = String::new();
@@ -65,5 +66,5 @@ fn serve_shows_the_deck_and_its_files_reloads_on_change_and_overlays_errors() {
         broken.contains("id=\"diapo-problems\"") && broken.contains("talk/diapo.md:2: unknown key `nope`"),
         "{broken}"
     );
-    assert!(broken.contains("Your turn"), "the last good deck stays under the overlay");
+    assert!(broken.contains("pl-text"), "the last good deck stays under the overlay");
 }
