@@ -80,6 +80,6 @@ test('the downloads page offers the install commands and the release files', asy
 	const links = await page.locator('main a').evaluateAll((all) => all.map((a) => a.getAttribute('href')));
 	expect(links).toContain('https://github.com/FacileStudio/Diapo/releases');
 	expect(links).toContain('https://github.com/FacileStudio/Diapo/releases/latest/download/checksums.txt');
-	expect(await page.locator('main').innerText()).toContain('facile install diapo');
+	expect(await page.locator('main').innerText()).toContain('kit add diapo');
 	await page.context().close();
 });

@@ -50,14 +50,14 @@ Use the arrow keys to move through the deck. The full reference is [docs/format.
 curl -fsSL https://raw.githubusercontent.com/FacileStudio/Diapo/main/install.sh | bash
 ```
 
-Installs to `~/.local/bin` via [facile](https://github.com/FacileStudio/facile), the suite
-installer. Pass `--bin-dir <dir>` to change that, `--source` to build from source, `--no-skill`
-to skip AI agent skill registration.
+Installs to `~/.local/bin` via [kit](https://github.com/FacileStudio/kit), the Facile package
+manager. Pass `--bin-dir <dir>` to change that, `--source` to build from source, `--no-skill` to
+skip AI agent skill registration.
 
-Already have `facile`:
+Already have `kit`:
 
 ```sh
-facile install diapo
+kit add diapo
 ```
 
 The first `diapo` binaries are published with the next tagged release. Until then, run it from

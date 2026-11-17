@@ -16,8 +16,8 @@ export const CHECKSUMS_HREF = `${RELEASES_HREF}/latest/download/checksums.txt`;
  */
 export const CLI_RELEASED: boolean = true;
 
-/** The suite installer, then the repository shim that bootstraps it. */
+/** kit, then the repository shim that bootstraps it. */
 export const INSTALL: CliCommand[] = [
-	{ label: 'facile', command: 'facile install diapo' },
+	{ label: 'kit', command: 'kit add diapo' },
 	{ label: 'curl', command: 'curl -fsSL https://raw.githubusercontent.com/FacileStudio/Diapo/main/install.sh | bash' }
 ];
