@@ -76,4 +76,16 @@ describe('clipboard', () => {
 		expect(decodeShapes(`${CLIP_PREFIX}{oops`)).toBeNull();
 		expect(problems(editor.doc)).toEqual([]);
 	});
+	it('pastes a foreign payload only with values the room accepts', () => {
+		const target = localDeckEditor();
+		target.insert('ellipse');
+		const fields = { x: 'nope', step: 5000, track: 99, fit: 'stretch', enter: 'x'.repeat(200), name: { bad: 1 } };
+		const payload = CLIP_PREFIX + JSON.stringify({ v: 1, shapes: [{ id: 'a', type: 'image', fields }] });
+		const [id] = new EditorActions(target).pasteText(payload);
+		const shape = target.slides[0].shapes.find((item) => item.id === id);
+		expect(shape).toMatchObject({ step: 1000, track: 64 });
+		expect(shape?.fit).toBeUndefined();
+		expect(shape?.enter?.length).toBe(64);
+		expect(problems(target.doc)).toEqual([]);
+	});
 });
